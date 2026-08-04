@@ -1,0 +1,237 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f7f5;
+  --foreground: #202522;
+  --surface: #ffffff;
+  --line: #e6eae7;
+  --muted: #69736d;
+  --green: #80cfa5;
+  --green-deep: #286244;
+  --green-soft: #e5f7ec;
+  --yellow: #f6d978;
+  --yellow-soft: #fff7d7;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-pretendard);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans KR", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.auth-input {
+  height: 100%;
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  padding-right: 1rem;
+  color: #313b35;
+  font-size: 16px;
+  font-weight: 500;
+  outline: none;
+}
+
+.auth-input::placeholder {
+  color: #a6aea9;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #c9efd8;
+  color: #173d2a;
+}
+
+/* 사내 서비스 전반의 작은 글자를 읽기 편한 크기로 보정합니다. */
+.text-\[8px\],
+.text-\[9px\] {
+  font-size: 11px;
+}
+
+.text-\[10px\] {
+  font-size: 12px;
+}
+
+.text-\[11px\] {
+  font-size: 13px;
+}
+
+.text-\[12px\],
+.text-xs {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.text-\[13px\],
+.text-sm {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.text-\[14px\] {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.text-\[15px\] {
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+/* FullCalendar를 제품 UI와 같은 톤으로 정리합니다. */
+.pc-calendar {
+  --fc-border-color: #e8ebe9;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #f7f8f7;
+  --fc-today-bg-color: #fffaf0;
+  --fc-now-indicator-color: #f0b94b;
+  --fc-button-bg-color: #ffffff;
+  --fc-button-border-color: #dfe4e1;
+  --fc-button-text-color: #4d5751;
+  --fc-button-hover-bg-color: #f4f7f5;
+  --fc-button-hover-border-color: #d6ddd8;
+  --fc-button-active-bg-color: #e5f7ec;
+  --fc-button-active-border-color: #a7ddbc;
+}
+
+.pc-calendar .fc {
+  min-width: 700px;
+  font-size: 16px;
+}
+
+.pc-calendar .fc .fc-toolbar {
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.pc-calendar .fc .fc-toolbar-title {
+  color: #29312c;
+  font-size: 25px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.pc-calendar .fc .fc-button {
+  min-height: 38px;
+  border-radius: 9px;
+  box-shadow: none;
+  font-size: 15px;
+  font-weight: 650;
+  padding: 0.45rem 0.72rem;
+}
+
+.pc-calendar .fc .fc-button:focus {
+  box-shadow: 0 0 0 3px rgba(128, 207, 165, 0.24);
+}
+
+.pc-calendar .fc .fc-col-header-cell {
+  background: #fafbfa;
+}
+
+.pc-calendar .fc .fc-col-header-cell-cushion {
+  color: #626c66;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 4px;
+}
+
+.pc-calendar .fc .fc-daygrid-day-number {
+  color: #59625d;
+  font-size: 15px;
+  font-weight: 650;
+  padding: 8px 9px;
+}
+
+.pc-calendar .fc .fc-day-sun .fc-col-header-cell-cushion {
+  color: #d94f4f;
+}
+
+.pc-calendar .fc .fc-day-sat .fc-col-header-cell-cushion {
+  color: #3976c5;
+}
+
+.pc-calendar .fc .fc-day-sun:not(.fc-day-today) .fc-daygrid-day-number {
+  color: #d94f4f;
+}
+
+.pc-calendar .fc .fc-day-sat:not(.fc-day-today) .fc-daygrid-day-number {
+  color: #3976c5;
+}
+
+.pc-calendar .fc .fc-day-today .fc-daygrid-day-number {
+  align-items: center;
+  background: #305f46;
+  border-radius: 999px;
+  color: white;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  margin: 4px;
+  padding: 0;
+  width: 28px;
+}
+
+.pc-calendar .fc .fc-daygrid-event {
+  border: 0;
+  border-radius: 7px;
+  margin: 3px 5px;
+  overflow: hidden;
+  padding: 0;
+}
+
+.pc-calendar .fc .fc-event .text-\[13px\] {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.pc-calendar .fc .fc-daygrid-more-link {
+  color: #397552;
+  font-size: 14px;
+  font-weight: 700;
+  margin-left: 7px;
+}
+
+.pc-calendar .fc .fc-list-event:hover td {
+  background: #f8faf8;
+}
+
+.pc-calendar .fc-theme-standard td,
+.pc-calendar .fc-theme-standard th,
+.pc-calendar .fc-theme-standard .fc-scrollgrid {
+  border-color: #e8ebe9;
+}
+
+@media (max-width: 1023px) {
+  .pc-calendar .fc .fc-toolbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
