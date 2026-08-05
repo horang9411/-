@@ -27,16 +27,7 @@ export default async function LoginPage({
         <div className="pointer-events-none absolute -right-28 -top-24 size-96 rounded-full bg-[#80cfa5]/10 blur-2xl" />
         <div className="pointer-events-none absolute bottom-12 right-10 size-40 rounded-full bg-[#f6d978]/10 blur-2xl" />
 
-        <div className="relative z-10 inline-flex w-fit items-center rounded-[14px] bg-white px-4 py-2.5 shadow-lg shadow-black/10">
-          <Image
-            src="/brand/pastelplay-logo.png"
-            alt="파스텔크래프트 회사 로고"
-            width={363}
-            height={108}
-            priority
-            className="h-auto w-[210px] object-contain"
-          />
-        </div>
+        <div aria-hidden className="relative z-10 h-[66px]" />
 
         <div className="relative z-10 mx-auto w-full max-w-[570px]">
           <h1 className="text-[60px] font-extrabold leading-[0.96] tracking-[-0.065em] xl:text-[76px] 2xl:text-[86px]">
