@@ -1,9 +1,9 @@
 .env*
 !.env.example
-coverage
-docs
-e2e
-playwright-report
-supabase
-test-results
-tests
+/coverage/
+/docs/
+/e2e/
+/playwright-report/
+/supabase/
+/test-results/
+/tests/
