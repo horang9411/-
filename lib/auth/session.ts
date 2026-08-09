@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { cache } from "react";
 
 import { cookies } from "next/headers";
+import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getServerEnv } from "@/lib/env";
@@ -13,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const SESSION_COOKIE_NAME =
   process.env.SESSION_COOKIE_NAME || "pc_session";
+export const SESSION_CACHE_TAG = "workspace-sessions";
 
 export type CurrentEmployee = {
   id: string;
@@ -48,17 +50,9 @@ export function hashSessionToken(token: string, pepper: string) {
   return createHash("sha256").update(token).update(pepper).digest("hex");
 }
 
-const getCurrentSessionCached = cache(async (): Promise<CachedSessionResult> => {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
-  if (!token) return { employee: null, reason: "missing" };
-
-  try {
-    const env = getServerEnv();
+const getSessionByTokenHash = unstable_cache(
+  async (tokenHash: string): Promise<CachedSessionResult> => {
     const supabase = createAdminClient();
-    const tokenHash = hashSessionToken(token, env.SESSION_TOKEN_PEPPER);
-
     const { data: session } = await supabase
       .from("sessions")
       .select(
@@ -103,6 +97,21 @@ const getCurrentSessionCached = cache(async (): Promise<CachedSessionResult> => 
       },
       reason: null,
     };
+  },
+  ["current-session-by-token-v1"],
+  { revalidate: 15, tags: [SESSION_CACHE_TAG] },
+);
+
+const getCurrentSessionCached = cache(async (): Promise<CachedSessionResult> => {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!token) return { employee: null, reason: "missing" };
+
+  try {
+    const env = getServerEnv();
+    const tokenHash = hashSessionToken(token, env.SESSION_TOKEN_PEPPER);
+    return getSessionByTokenHash(tokenHash);
   } catch {
     return { employee: null, reason: "invalid" };
   }

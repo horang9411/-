@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import {
   hasValidMutationOrigin,
   invalidOriginResponse,
 } from "@/lib/auth/api";
-import { hashSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import {
+  hashSessionToken,
+  SESSION_CACHE_TAG,
+  SESSION_COOKIE_NAME,
+} from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -29,6 +34,7 @@ export async function POST(request: Request) {
           "session_token_hash",
           hashSessionToken(decodeURIComponent(token), env.SESSION_TOKEN_PEPPER),
         );
+      revalidateTag(SESSION_CACHE_TAG, { expire: 0 });
     } catch {
       // DB 오류와 관계없이 브라우저 쿠키는 반드시 제거합니다.
     }

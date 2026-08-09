@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
 import { hasValidMutationOrigin, invalidOriginResponse, requireApiEmployee } from "@/lib/auth/api";
+import { SESSION_CACHE_TAG } from "@/lib/auth/session";
 import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import {
   getProfileImageExtension,
@@ -91,6 +92,7 @@ export async function PATCH(request: Request) {
       changed_data: changedData,
     });
     revalidateTag(EMPLOYEES_CACHE_TAG, { expire: 0 });
+    revalidateTag(SESSION_CACHE_TAG, { expire: 0 });
   }
 
   return NextResponse.json({ ok: true });

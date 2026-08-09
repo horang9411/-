@@ -6,6 +6,7 @@ import {
   invalidOriginResponse,
   requireApiAdmin,
 } from "@/lib/auth/admin";
+import { SESSION_CACHE_TAG } from "@/lib/auth/session";
 import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { employeeStatusActionSchema } from "@/schemas/admin-employees";
@@ -113,6 +114,7 @@ export async function POST(
     },
   });
   revalidateTag(EMPLOYEES_CACHE_TAG, { expire: 0 });
+  revalidateTag(SESSION_CACHE_TAG, { expire: 0 });
 
   return NextResponse.json({ ok: true });
 }
