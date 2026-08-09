@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { TaskForm } from "@/components/tasks/task-form";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
+import { getWorkspaceEmployees } from "@/lib/employees/data";
 import { canViewAllDepartments } from "@/lib/employees/permissions";
 import {
   createProfileImageSignedUrl,
@@ -23,21 +24,18 @@ export default async function TaskNewPage({
   const { edit: editId } = await searchParams;
   const supabase = createAdminClient();
 
-  let employeeQuery = supabase
-    .from("employees")
-    .select("id, name, position, department, profile_image_url")
-    .eq("account_status", "active")
-    .order("name", { ascending: true });
-  if (!canViewAllDepartments(currentEmployee)) {
-    employeeQuery = employeeQuery.eq("department", currentEmployee.departmentCode);
-  }
-
-  const { data: employees } = await employeeQuery;
+  const canSeeEveryDepartment = canViewAllDepartments(currentEmployee);
+  const employees = (await getWorkspaceEmployees()).filter(
+    (employee) =>
+      employee.account_status === "active" &&
+      (canSeeEveryDepartment ||
+        employee.department === currentEmployee.departmentCode),
+  );
   const profileImageUrlByValue = await createProfileImageSignedUrlMap(
     supabase,
-    (employees ?? []).map((employee) => employee.profile_image_url),
+    employees.map((employee) => employee.profile_image_url),
   );
-  const employeeOptions = (employees ?? []).map((employee) => ({
+  const employeeOptions = employees.map((employee) => ({
     id: employee.id,
     name: employee.name,
     position: positionLabel(employee.position),

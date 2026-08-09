@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { EmployeeDirectory } from "@/components/employees/employee-directory";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
+import { getWorkspaceEmployees } from "@/lib/employees/data";
 import { canViewEmployeeWorkDetails } from "@/lib/employees/permissions";
 import { createProfileImageSignedUrlMap } from "@/lib/storage/profile-image";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,19 +17,16 @@ export default async function EmployeesPage({
 }) {
   const currentEmployee = await requireCurrentEmployee();
   const supabase = createAdminClient();
-  const { data: rows } = await supabase
-    .from("employees")
-    .select("id, name, position, department, phone, profile_image_url, role")
-    .eq("account_status", "active")
-    .order("department", { ascending: true })
-    .order("name", { ascending: true });
+  const rows = (await getWorkspaceEmployees()).filter(
+    (employee) => employee.account_status === "active",
+  );
   const { denied } = await searchParams;
 
   const profileImageUrlByValue = await createProfileImageSignedUrlMap(
     supabase,
-    (rows ?? []).map((employee) => employee.profile_image_url),
+    rows.map((employee) => employee.profile_image_url),
   );
-  const employees = (rows ?? []).map((employee) => ({
+  const employees = rows.map((employee) => ({
       id: employee.id,
       name: employee.name,
       position: employee.position,

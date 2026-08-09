@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import {
   hasValidMutationOrigin,
   invalidOriginResponse,
   requireApiAdmin,
 } from "@/lib/auth/admin";
+import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { adminUpdateEmployeeSchema } from "@/schemas/admin-employees";
 
@@ -91,6 +93,7 @@ export async function PATCH(
     target_id: id,
     changed_data: changedData,
   });
+  revalidateTag(EMPLOYEES_CACHE_TAG, { expire: 0 });
 
   return NextResponse.json({ ok: true });
 }

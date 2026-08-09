@@ -1,63 +1,52 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
+
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const PROFILE_IMAGE_BUCKET = "profile-images";
 export const PROFILE_IMAGE_URL_TTL_SECONDS = 60 * 60;
 
+const createCachedProfileImageSignedUrl = unstable_cache(
+  async (storedValue: string) => {
+    const path = getProfileImagePath(storedValue);
+    if (!path) return null;
+
+    const { data, error } = await createAdminClient().storage
+      .from(PROFILE_IMAGE_BUCKET)
+      .createSignedUrl(path, PROFILE_IMAGE_URL_TTL_SECONDS);
+
+    return error ? null : data.signedUrl;
+  },
+  ["profile-image-signed-url-v1"],
+  { revalidate: 50 * 60 },
+);
+
 export async function createProfileImageSignedUrl(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   storedValue: string | null | undefined,
 ) {
-  const path = getProfileImagePath(storedValue);
-  if (!path) return null;
-
-  const { data, error } = await supabase.storage
-    .from(PROFILE_IMAGE_BUCKET)
-    .createSignedUrl(path, PROFILE_IMAGE_URL_TTL_SECONDS);
-
-  return error ? null : data.signedUrl;
+  if (!storedValue) return null;
+  return createCachedProfileImageSignedUrl(storedValue);
 }
 
 export async function createProfileImageSignedUrlMap(
   supabase: SupabaseClient,
   storedValues: Array<string | null | undefined>,
 ) {
-  const valueToPath = new Map<string, string | null>();
-  storedValues.forEach((storedValue) => {
-    if (storedValue) valueToPath.set(storedValue, getProfileImagePath(storedValue));
-  });
-  const uniquePaths = [
+  const uniqueValues = [
     ...new Set(
-      [...valueToPath.values()].filter((path): path is string => Boolean(path)),
+      storedValues.filter((storedValue): storedValue is string => Boolean(storedValue)),
     ),
   ];
-  const result = new Map<string, string | null>();
-
-  if (uniquePaths.length === 0) {
-    valueToPath.forEach((_, storedValue) => result.set(storedValue, null));
-    return result;
-  }
-
-  const { data, error } = await supabase.storage
-    .from(PROFILE_IMAGE_BUCKET)
-    .createSignedUrls(uniquePaths, PROFILE_IMAGE_URL_TTL_SECONDS);
-
-  if (error || !data) {
-    valueToPath.forEach((_, storedValue) => result.set(storedValue, null));
-    return result;
-  }
-
-  const signedUrlByPath = new Map<string, string | null>();
-  data.forEach((item, index) => {
-    const path = item.path ?? uniquePaths[index];
-    if (path) signedUrlByPath.set(path, item.error ? null : item.signedUrl);
-  });
-  valueToPath.forEach((path, storedValue) => {
-    result.set(storedValue, path ? (signedUrlByPath.get(path) ?? null) : null);
-  });
-
-  return result;
+  const entries = await Promise.all(
+    uniqueValues.map(async (storedValue) => [
+      storedValue,
+      await createProfileImageSignedUrl(supabase, storedValue),
+    ] as const),
+  );
+  return new Map(entries);
 }
 
 export function getProfileImagePath(storedValue: string | null | undefined) {

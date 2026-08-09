@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import { hasValidMutationOrigin, invalidOriginResponse, requireApiEmployee } from "@/lib/auth/api";
+import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import {
   getProfileImageExtension,
   hasValidProfileImageSignature,
@@ -88,6 +90,7 @@ export async function PATCH(request: Request) {
       target_id: auth.employee.id,
       changed_data: changedData,
     });
+    revalidateTag(EMPLOYEES_CACHE_TAG, { expire: 0 });
   }
 
   return NextResponse.json({ ok: true });

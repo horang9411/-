@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { MeetingRoom } from "@/components/meetings/meeting-room";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
+import { getWorkspaceEmployees } from "@/lib/employees/data";
 import { canDeleteMeeting } from "@/lib/meetings/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = { title: "회의실" };
 export default async function MeetingsPage() {
   const currentEmployee = await requireCurrentEmployee();
   const supabase = createAdminClient();
-  const [meetingResult, employeeResult] = await Promise.all([
+  const [meetingResult, employees] = await Promise.all([
     supabase
       .from("meetings")
       .select(
@@ -19,10 +20,7 @@ export default async function MeetingsPage() {
       .order("meeting_date", { ascending: true })
       .order("start_time", { ascending: true })
       .limit(100),
-    supabase
-      .from("employees")
-      .select("id, name, position, department, account_status")
-      .order("name", { ascending: true }),
+    getWorkspaceEmployees(),
   ]);
 
   const schemaMissing =
@@ -31,10 +29,6 @@ export default async function MeetingsPage() {
   if (meetingResult.error && !schemaMissing) {
     throw new Error("회의 목록을 불러오지 못했습니다.");
   }
-  if (employeeResult.error) {
-    throw new Error("참여 직원 목록을 불러오지 못했습니다.");
-  }
-
   const meetings = meetingResult.data ?? [];
   const { data: participantRows, error: participantError } = meetings.length
     ? await supabase
@@ -46,7 +40,6 @@ export default async function MeetingsPage() {
     throw new Error("회의 참여자 정보를 불러오지 못했습니다.");
   }
 
-  const employees = employeeResult.data ?? [];
   const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
   const participantIdsByMeeting = new Map<string, string[]>();
   (participantRows ?? []).forEach((participant) => {

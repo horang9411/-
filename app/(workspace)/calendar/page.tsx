@@ -8,6 +8,7 @@ import {
 } from "@/lib/announcements/permissions";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
+import { getWorkspaceEmployees } from "@/lib/employees/data";
 import { canViewAllDepartments } from "@/lib/employees/permissions";
 import {
   leaveDayTypeLabel,
@@ -37,16 +38,11 @@ export default async function CalendarPage() {
     .order("created_at", { ascending: false })
     .limit(20);
   const canSeeEveryDepartment = canViewAllDepartments(currentEmployee);
-  let employeeScopeQuery = supabase
-    .from("employees")
-    .select("id, name, position, department, profile_image_url, account_status")
-    .order("name", { ascending: true });
-  if (!canSeeEveryDepartment) {
-    employeeScopeQuery = employeeScopeQuery.eq("department", currentEmployee.departmentCode);
-  }
-  const employeeScopeResult = await employeeScopeQuery;
-  if (employeeScopeResult.error) throw new Error("직원 범위를 확인하지 못했습니다.");
-  const scopedEmployees = employeeScopeResult.data ?? [];
+  const workspaceEmployees = await getWorkspaceEmployees();
+  const scopedEmployees = workspaceEmployees.filter(
+    (employee) =>
+      canSeeEveryDepartment || employee.department === currentEmployee.departmentCode,
+  );
   const visibleEmployeeIds = scopedEmployees.map((employee) => employee.id);
 
   const [settingsResult, taskResult, leaveResult, holidayResult, announcementResult] = await Promise.all([
@@ -85,15 +81,6 @@ export default async function CalendarPage() {
   const announcements = announcementResult.error
     ? []
     : (announcementResult.data ?? []);
-  const announcementAuthorIds = [
-    ...new Set(announcements.map((announcement) => announcement.created_by)),
-  ];
-  const announcementAuthorPromise = announcementAuthorIds.length
-    ? supabase
-          .from("employees")
-          .select("id, name, position")
-          .in("id", announcementAuthorIds)
-    : Promise.resolve({ data: [], error: null });
   const taskParticipantPromise = tasks.length
     ? supabase
         .from("task_participants")
@@ -105,19 +92,14 @@ export default async function CalendarPage() {
     scopedEmployees.map((employee) => employee.profile_image_url),
   );
   const [
-    { data: announcementAuthors, error: announcementAuthorError },
     { data: taskParticipantRows, error: taskParticipantError },
     profileImageUrlByValue,
   ] = await Promise.all([
-    announcementAuthorPromise,
     taskParticipantPromise,
     profileImagePromise,
   ]);
-  if (announcementAuthorError) {
-    throw new Error("공지 작성자 정보를 불러오지 못했습니다.");
-  }
   const announcementAuthorById = new Map(
-    (announcementAuthors ?? []).map((author) => [author.id, author]),
+    workspaceEmployees.map((author) => [author.id, author]),
   );
   if (taskParticipantError && taskParticipantError.code !== "PGRST205") {
     throw new Error("업무 참여자 정보를 불러오지 못했습니다.");

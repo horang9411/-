@@ -7,17 +7,21 @@ import {
 } from "@/lib/announcements/permissions";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { positionLabel } from "@/lib/employees/constants";
+import { getWorkspaceEmployees } from "@/lib/employees/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "공지사항" };
 export default async function AnnouncementsPage() {
   const currentEmployee = await requireCurrentEmployee();
   const supabase = createAdminClient();
-  const announcementResult = await supabase
-    .from("announcements")
-    .select("id, title, content, created_by, meeting_id, created_at")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [announcementResult, employees] = await Promise.all([
+    supabase
+      .from("announcements")
+      .select("id, title, content, created_by, meeting_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    getWorkspaceEmployees(),
+  ]);
 
   const schemaMissing =
     announcementResult.error?.code === "PGRST205" ||
@@ -28,17 +32,7 @@ export default async function AnnouncementsPage() {
   }
 
   const announcements = announcementResult.data ?? [];
-  const authorIds = [
-    ...new Set(announcements.map((announcement) => announcement.created_by)),
-  ];
-  const { data: authors, error: authorError } = authorIds.length
-    ? await supabase
-        .from("employees")
-        .select("id, name, position")
-        .in("id", authorIds)
-    : { data: [], error: null };
-  if (authorError) throw new Error("공지 작성자 정보를 불러오지 못했습니다.");
-  const authorById = new Map((authors ?? []).map((author) => [author.id, author]));
+  const authorById = new Map(employees.map((employee) => [employee.id, employee]));
 
   return (
     <AnnouncementBoard

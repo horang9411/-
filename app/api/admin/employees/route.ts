@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import {
   hasValidMutationOrigin,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/auth/admin";
 import { hashPassword } from "@/lib/auth/password";
 import { getServerEnv } from "@/lib/env";
+import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { adminCreateEmployeeSchema } from "@/schemas/admin-employees";
 
@@ -87,6 +89,7 @@ export async function POST(request: Request) {
       account_status: "active",
     },
   });
+  revalidateTag(EMPLOYEES_CACHE_TAG, { expire: 0 });
 
   return NextResponse.json({ ok: true, id: employee.id }, { status: 201 });
 }

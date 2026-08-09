@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import {
   hasValidMutationOrigin,
   invalidOriginResponse,
   requireApiAdmin,
 } from "@/lib/auth/admin";
+import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { employeeStatusActionSchema } from "@/schemas/admin-employees";
 
@@ -110,6 +112,7 @@ export async function POST(
       reason: parsed.data.reason || null,
     },
   });
+  revalidateTag(EMPLOYEES_CACHE_TAG, { expire: 0 });
 
   return NextResponse.json({ ok: true });
 }
