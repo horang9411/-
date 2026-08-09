@@ -170,7 +170,7 @@ export function LeaveRequestForm({
   return (
     <section className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[1120px]">
-        <Link href="/calendar" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#647169] hover:text-[#315f47]">
+        <Link href="/calendar" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-[13px] font-bold text-[#647169] hover:text-[#315f47]">
           <ArrowLeft className="size-4" /> 캘린더로 돌아가기
         </Link>
 
@@ -264,11 +264,11 @@ function ApprovalGuide() {
   return (
     <div className="mt-5 rounded-[18px] border border-[#dfe6e1] bg-white px-5 py-5 sm:px-7">
       <p className="text-[13px] font-extrabold text-[#344039]">휴가 승인 절차</p>
-      <div className="mt-4 flex items-center gap-2 sm:gap-4">
+      <div className="mt-4 grid gap-2 sm:flex sm:items-center sm:gap-4">
         <ApprovalStep icon={UserCheck} number="1" label="부서 팀장 승인" />
-        <span className="h-px flex-1 bg-[#cfd9d2]" />
+        <span className="hidden h-px flex-1 bg-[#cfd9d2] sm:block" />
         <ApprovalStep icon={ShieldCheck} number="2" label="대표자 승인" />
-        <span className="h-px flex-1 bg-[#cfd9d2]" />
+        <span className="hidden h-px flex-1 bg-[#cfd9d2] sm:block" />
         <ApprovalStep icon={Check} number="3" label="승인 완료" />
       </div>
     </div>
@@ -276,7 +276,7 @@ function ApprovalGuide() {
 }
 
 function ApprovalStep({ icon: Icon, number, label }: { icon: React.ComponentType<{ className?: string }>; number: string; label: string }) {
-  return <div className="flex shrink-0 items-center gap-2"><span className="flex size-8 items-center justify-center rounded-full bg-[#e6f5eb] text-[#3b7453]"><Icon className="size-4" /></span><span><span className="block text-[9px] font-bold text-[#9aa29d]">{number}단계</span><span className="block text-[11px] font-extrabold text-[#556159] sm:text-[12px]">{label}</span></span></div>;
+  return <div className="flex min-h-12 w-full shrink-0 items-center gap-3 rounded-[11px] bg-[#f6f9f7] px-3 sm:min-h-0 sm:w-auto sm:gap-2 sm:bg-transparent sm:px-0"><span className="flex size-8 items-center justify-center rounded-full bg-[#e6f5eb] text-[#3b7453]"><Icon className="size-4" /></span><span><span className="block text-[9px] font-bold text-[#9aa29d]">{number}단계</span><span className="block text-[11px] font-extrabold text-[#556159] sm:text-[12px]">{label}</span></span></div>;
 }
 
 function MyLeaveRequests({ requests, isAdmin, cancellingId, onCancel }: { requests: RequestSummary[]; isAdmin: boolean; cancellingId: string | null; onCancel: (id: string) => void }) {

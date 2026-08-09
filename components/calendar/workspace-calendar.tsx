@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -169,6 +169,7 @@ export function WorkspaceCalendar({
   currentDepartment: string;
 }) {
   const router = useRouter();
+  const calendarRef = useRef<FullCalendar | null>(null);
   const [mode, setMode] = useState<CalendarMode>(defaultMode);
   const [selected, setSelected] = useState<EventClickArg["event"] | null>(null);
   const [employeeFilter, setEmployeeFilter] = useState("all");
@@ -217,6 +218,12 @@ export function WorkspaceCalendar({
     ...(mode === "leave" ? [leaveTypeFilter] : []),
     ...(mode === "leave" ? [statusFilter] : []),
   ].filter((value) => value !== "all").length;
+
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 639px)").matches) {
+      calendarRef.current?.getApi().changeView("listMonth");
+    }
+  }, [mode]);
 
   function changeMode(nextMode: CalendarMode) {
     setMode(nextMode);
@@ -432,6 +439,7 @@ export function WorkspaceCalendar({
 
             <div className="pc-calendar overflow-x-auto pb-2">
               <FullCalendar
+                ref={calendarRef}
                 key={mode}
                 plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
                 initialView="dayGridMonth"
@@ -642,7 +650,7 @@ function CalendarTab({
       aria-selected={active}
       onClick={onClick}
       className={cn(
-        "h-9 rounded-[9px] px-4 text-[13px] font-bold transition-all focus:outline-none focus:ring-3 focus:ring-emerald-100",
+        "h-11 rounded-[9px] px-4 text-[13px] font-bold transition-all focus:outline-none focus:ring-3 focus:ring-emerald-100 sm:h-9",
         active
           ? "bg-white text-[#2d6245] shadow-[0_1px_3px_rgba(35,50,41,0.09)]"
           : "text-[#7b857f] hover:text-[#48534c]",

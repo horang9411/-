@@ -190,7 +190,7 @@ export function TaskForm({
   return (
     <section className="p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-[980px]">
-        <Link href="/calendar" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-[#647169] hover:text-[#315f47]">
+        <Link href="/calendar" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-[13px] font-bold text-[#647169] hover:text-[#315f47]">
           <ArrowLeft className="size-4" /> 캘린더로 돌아가기
         </Link>
 

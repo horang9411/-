@@ -10,7 +10,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
       <SessionGuard expiresAt={currentUser.sessionExpiresAt} />
       <AppSidebar user={currentUser} />
       <AppHeader user={currentUser} />
-      <main className="ml-[76px] min-h-screen pt-[72px] lg:ml-[244px]">
+      <main className="min-h-screen pb-[calc(88px+env(safe-area-inset-bottom))] pt-[72px] lg:ml-[244px] lg:pb-0">
         {children}
       </main>
     </div>

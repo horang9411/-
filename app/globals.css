@@ -235,3 +235,17 @@ a {
     flex-wrap: wrap;
   }
 }
+
+@media (max-width: 639px) {
+  .pc-calendar .fc {
+    min-width: 0;
+  }
+
+  .pc-calendar .fc .fc-toolbar-title {
+    font-size: 20px;
+  }
+
+  .pc-calendar .fc .fc-button {
+    min-height: 44px;
+  }
+}

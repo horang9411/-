@@ -38,7 +38,7 @@ export function AppHeader({ user }: { user: WorkspaceUser }) {
   }
 
   return (
-    <header className="fixed inset-x-0 top-0 z-30 ml-[76px] flex h-[72px] items-center justify-between border-b border-[#e3e8e4] bg-white/95 px-5 backdrop-blur lg:ml-[244px] lg:px-8">
+    <header className="fixed inset-x-0 top-0 z-30 flex h-[72px] items-center justify-between border-b border-[#e3e8e4] bg-white/95 px-4 backdrop-blur lg:ml-[244px] lg:px-8">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <h1 className="truncate text-lg font-extrabold tracking-[-0.03em] text-[#27332c]">

@@ -201,14 +201,14 @@ export function AppSidebar({ user }: AppSidebarProps) {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 flex w-[76px] flex-col border-r border-[#e2e7e3] bg-[#f8faf8] lg:w-[244px]">
+    <aside className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(72px+env(safe-area-inset-bottom))] flex-row border-t border-[#e2e7e3] bg-[#f8faf8] pb-[env(safe-area-inset-bottom)] lg:inset-y-0 lg:left-0 lg:right-auto lg:h-auto lg:w-[244px] lg:flex-col lg:border-r lg:border-t-0 lg:pb-0">
       {pendingHref && (
-        <div className="fixed left-[76px] right-0 top-[72px] z-50 h-1 overflow-hidden bg-[#dce9df] lg:left-[244px]">
+        <div className="fixed left-0 right-0 top-[72px] z-50 h-1 overflow-hidden bg-[#dce9df] lg:left-[244px]">
           <div className="h-full w-1/2 animate-pulse rounded-r-full bg-[#58a873]" />
           <span className="sr-only">새 화면을 불러오고 있습니다.</span>
         </div>
       )}
-      <div className="flex h-[72px] items-center justify-center border-b border-[#e8ece9] px-2 lg:px-5">
+      <div className="hidden h-[72px] items-center justify-center border-b border-[#e8ece9] px-2 lg:flex lg:px-5">
         <Link
           href="/calendar"
           prefetch
@@ -227,7 +227,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
         </Link>
       </div>
 
-      <nav aria-label="주 메뉴" className="flex-1 overflow-y-auto px-3 py-5 lg:px-4">
+      <nav aria-label="주 메뉴" className="flex flex-1 items-center overflow-x-auto overflow-y-hidden px-2 py-1.5 lg:block lg:overflow-x-hidden lg:overflow-y-auto lg:px-4 lg:py-5">
         <NavGroup
           items={mainNavigation}
           pathname={pathname}
@@ -242,7 +242,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
         />
 
         {canApproveLeave && (
-          <div className="mt-7 border-t border-[#e5e9e6] pt-5">
+          <div className="contents lg:mt-7 lg:block lg:border-t lg:border-[#e5e9e6] lg:pt-5">
             <p className="mb-2 hidden px-3 text-[11px] font-bold tracking-[0.08em] text-[#9aa39e] lg:block">
               승인
             </p>
@@ -259,7 +259,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
         )}
 
         {isAdmin && (
-          <div className="mt-7 border-t border-[#e5e9e6] pt-5">
+          <div className="contents lg:mt-7 lg:block lg:border-t lg:border-[#e5e9e6] lg:pt-5">
             <p className="mb-2 hidden px-3 text-[11px] font-bold tracking-[0.08em] text-[#9aa39e] lg:block">
               관리자
             </p>
@@ -318,7 +318,7 @@ function NavGroup({
   badgeByHref?: Partial<Record<string, number | null>>;
 }) {
   return (
-    <div className="space-y-1">
+    <div className="flex h-full shrink-0 items-center gap-1 lg:block lg:h-auto lg:space-y-1">
       {items.map((item) => {
         const isActive =
           pathname === item.href ||
@@ -335,7 +335,7 @@ function NavGroup({
             onClick={() => onNavigate(item.href)}
             title={item.label}
             className={cn(
-              "group relative flex h-11 items-center justify-center gap-3 rounded-[11px] px-3 text-base font-semibold transition-colors lg:justify-start",
+              "group relative flex h-[58px] min-w-[62px] flex-col items-center justify-center gap-1 rounded-[11px] px-2 text-[10px] font-semibold transition-colors lg:h-11 lg:min-w-0 lg:flex-row lg:gap-3 lg:px-3 lg:text-base lg:justify-start",
               isActive
                 ? "bg-[#e3f5ea] text-[#285d40]"
                 : "text-[#66716a] hover:bg-[#edf1ee] hover:text-[#36423b]",
@@ -346,7 +346,7 @@ function NavGroup({
             ) : (
               <Icon className="size-[19px] shrink-0" strokeWidth={isActive ? 2.35 : 1.9} />
             )}
-            <span className="hidden min-w-0 flex-1 lg:inline">{item.label}</span>
+            <span className="block max-w-[58px] truncate leading-none lg:min-w-0 lg:max-w-none lg:flex-1 lg:leading-normal">{item.label}</span>
             {typeof badgeCount === "number" && badgeCount > 0 && (
               <span
                 aria-label={`${item.label} 새 알림 ${badgeCount}건`}
