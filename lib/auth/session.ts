@@ -36,13 +36,19 @@ export type CurrentSessionResult =
   | { employee: CurrentEmployee; reason: null }
   | { employee: null; reason: SessionFailureReason };
 
+type CachedEmployee = CurrentEmployee & {
+  profileImageStoredValue: string | null;
+};
+
+type CachedSessionResult =
+  | { employee: CachedEmployee; reason: null }
+  | { employee: null; reason: SessionFailureReason };
+
 export function hashSessionToken(token: string, pepper: string) {
   return createHash("sha256").update(token).update(pepper).digest("hex");
 }
 
-const getCurrentSessionCached = cache(async (
-  includeProfileImage: boolean,
-): Promise<CurrentSessionResult> => {
+const getCurrentSessionCached = cache(async (): Promise<CachedSessionResult> => {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
@@ -82,10 +88,6 @@ const getCurrentSessionCached = cache(async (
       return { employee: null, reason: "account-disabled" };
     }
 
-    const imageUrl = includeProfileImage
-      ? await createProfileImageSignedUrl(supabase, employee.profile_image_url)
-      : null;
-
     return {
       employee: {
         id: employee.id,
@@ -94,7 +96,8 @@ const getCurrentSessionCached = cache(async (
         positionCode: employee.position,
         department: departmentLabel(employee.department),
         departmentCode: employee.department,
-        imageUrl,
+        imageUrl: null,
+        profileImageStoredValue: employee.profile_image_url,
         role: employee.role,
         sessionExpiresAt: session.expires_at,
       },
@@ -106,11 +109,23 @@ const getCurrentSessionCached = cache(async (
 });
 
 export async function getCurrentSession({
-  includeProfileImage = true,
+  includeProfileImage = false,
 }: {
   includeProfileImage?: boolean;
 } = {}): Promise<CurrentSessionResult> {
-  return getCurrentSessionCached(includeProfileImage);
+  const session = await getCurrentSessionCached();
+  if (!session.employee) return session;
+
+  const { profileImageStoredValue, ...employee } = session.employee;
+  if (!includeProfileImage || !profileImageStoredValue) {
+    return { employee, reason: null };
+  }
+
+  const imageUrl = await createProfileImageSignedUrl(
+    createAdminClient(),
+    profileImageStoredValue,
+  );
+  return { employee: { ...employee, imageUrl }, reason: null };
 }
 
 export async function getCurrentEmployee(): Promise<CurrentEmployee | null> {
@@ -118,8 +133,10 @@ export async function getCurrentEmployee(): Promise<CurrentEmployee | null> {
   return session.employee;
 }
 
-export async function requireCurrentEmployee() {
-  const session = await getCurrentSession();
+export async function requireCurrentEmployee(options?: {
+  includeProfileImage?: boolean;
+}) {
+  const session = await getCurrentSession(options);
   if (!session.employee) {
     const reason =
       session.reason === "expired"
