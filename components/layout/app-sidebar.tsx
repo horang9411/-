@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 
 import {
@@ -29,6 +29,44 @@ export function AppSidebar({ user }: AppSidebarProps) {
     pendingNavigation?.fromPath === pathname ? pendingNavigation.href : null;
   const isAdmin = user.role === "admin";
   const canApproveLeave = isAdmin || user.positionCode === "team_lead";
+  const [pendingLeaveCount, setPendingLeaveCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!canApproveLeave) return;
+
+    let active = true;
+    const loadPendingLeaveCount = async () => {
+      try {
+        const response = await fetch("/api/leave/pending-count", {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const result = (await response.json()) as { count?: number };
+        if (active && typeof result.count === "number") {
+          setPendingLeaveCount(result.count);
+        }
+      } catch {
+        // 일시적인 네트워크 오류가 발생하면 기존 표시를 유지합니다.
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadPendingLeaveCount();
+    };
+    void loadPendingLeaveCount();
+    const intervalId = window.setInterval(loadPendingLeaveCount, 30_000);
+    window.addEventListener("focus", loadPendingLeaveCount);
+    window.addEventListener("leave-requests-changed", loadPendingLeaveCount);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", loadPendingLeaveCount);
+      window.removeEventListener("leave-requests-changed", loadPendingLeaveCount);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [canApproveLeave]);
   const beginNavigation = (href: string) => {
     if (href !== pathname) {
       flushSync(() => setPendingNavigation({ href, fromPath: pathname }));
@@ -80,6 +118,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
               pathname={pathname}
               pendingHref={pendingHref}
               onNavigate={beginNavigation}
+              badgeByHref={{
+                "/admin/leave": pendingLeaveCount,
+              }}
             />
           </div>
         )}
@@ -135,11 +176,13 @@ function NavGroup({
   pathname,
   pendingHref,
   onNavigate,
+  badgeByHref,
 }: {
   items: readonly NavItem[];
   pathname: string;
   pendingHref: string | null;
   onNavigate: (href: string) => void;
+  badgeByHref?: Partial<Record<string, number | null>>;
 }) {
   return (
     <div className="space-y-1">
@@ -149,6 +192,7 @@ function NavGroup({
           (item.href !== "/calendar" && pathname.startsWith(`${item.href}/`));
         const Icon = item.icon;
         const isPending = pendingHref === item.href;
+        const badgeCount = badgeByHref?.[item.href];
 
         return (
           <Link
@@ -158,7 +202,7 @@ function NavGroup({
             onClick={() => onNavigate(item.href)}
             title={item.label}
             className={cn(
-              "group flex h-11 items-center justify-center gap-3 rounded-[11px] px-3 text-base font-semibold transition-colors lg:justify-start",
+              "group relative flex h-11 items-center justify-center gap-3 rounded-[11px] px-3 text-base font-semibold transition-colors lg:justify-start",
               isActive
                 ? "bg-[#e3f5ea] text-[#285d40]"
                 : "text-[#66716a] hover:bg-[#edf1ee] hover:text-[#36423b]",
@@ -169,7 +213,15 @@ function NavGroup({
             ) : (
               <Icon className="size-[19px] shrink-0" strokeWidth={isActive ? 2.35 : 1.9} />
             )}
-            <span className="hidden lg:inline">{item.label}</span>
+            <span className="hidden min-w-0 flex-1 lg:inline">{item.label}</span>
+            {typeof badgeCount === "number" && badgeCount > 0 && (
+              <span
+                aria-label={`처리할 휴가 신청 ${badgeCount}건`}
+                className="absolute right-1 top-1 flex min-w-5 items-center justify-center rounded-full bg-[#f1c84c] px-1.5 py-0.5 text-[10px] font-black leading-4 text-[#594708] shadow-sm lg:static lg:text-[11px]"
+              >
+                {badgeCount > 99 ? "99+" : badgeCount}
+              </span>
+            )}
           </Link>
         );
       })}

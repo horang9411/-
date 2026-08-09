@@ -115,6 +115,7 @@ export function LeaveApprovalManager({
       const result = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(result.message ?? "승인 상태를 변경하지 못했습니다.");
       setNotice({ kind: "success", text: decision === "approve" ? "승인 처리했습니다." : "반려 처리했습니다." });
+      window.dispatchEvent(new Event("leave-requests-changed"));
       router.refresh();
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "처리 중 오류가 발생했습니다." });
@@ -132,6 +133,7 @@ export function LeaveApprovalManager({
       const result = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(result.message ?? "휴가를 취소하지 못했습니다.");
       setNotice({ kind: "success", text: "휴가 신청을 취소했습니다." });
+      window.dispatchEvent(new Event("leave-requests-changed"));
       router.refresh();
     } catch (error) {
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "취소 중 오류가 발생했습니다." });

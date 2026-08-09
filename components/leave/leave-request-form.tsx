@@ -157,6 +157,7 @@ export function LeaveRequestForm({
       const response = await fetch(`/api/leave/${id}/cancel`, { method: "POST" });
       const result = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(result.message ?? "휴가 신청을 취소하지 못했습니다.");
+      window.dispatchEvent(new Event("leave-requests-changed"));
       router.refresh();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "취소 중 오류가 발생했습니다.");
