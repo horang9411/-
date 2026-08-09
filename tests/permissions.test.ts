@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { CurrentEmployee } from "@/lib/auth/session";
+import {
+  canDeleteAnnouncement,
+  canPublishAnnouncement,
+} from "@/lib/announcements/permissions";
 import { canViewDepartment } from "@/lib/employees/permissions";
+import { canDeleteMeeting } from "@/lib/meetings/permissions";
 import {
   canReviewAsRepresentative,
   canReviewAsTeamLead,
@@ -80,4 +85,46 @@ test("관리자와 팀장은 모든 부서를, 일반 직원은 자기 부서만
   assert.equal(canViewDepartment(employee(), "logistics"), false);
   assert.equal(canViewDepartment(employee({ positionCode: "team_lead" }), "logistics"), true);
   assert.equal(canViewDepartment(employee({ role: "admin" }), "logistics"), true);
+});
+
+test("관리자·팀장·대표만 공지사항을 등록한다", () => {
+  assert.equal(canPublishAnnouncement(employee()), false);
+  assert.equal(
+    canPublishAnnouncement(employee({ positionCode: "team_lead", position: "팀장" })),
+    true,
+  );
+  assert.equal(
+    canPublishAnnouncement(
+      employee({ positionCode: "representative", position: "대표" }),
+    ),
+    true,
+  );
+  assert.equal(canPublishAnnouncement(employee({ role: "admin" })), true);
+});
+
+test("관리자는 모든 공지를, 팀장은 본인이 작성한 공지만 삭제한다", () => {
+  const authorId = "00000000-0000-4000-8000-000000000002";
+  assert.equal(canDeleteAnnouncement(employee({ role: "admin" }), authorId), true);
+  assert.equal(
+    canDeleteAnnouncement(
+      employee({ id: authorId, positionCode: "team_lead", position: "팀장" }),
+      authorId,
+    ),
+    true,
+  );
+  assert.equal(
+    canDeleteAnnouncement(
+      employee({ positionCode: "team_lead", position: "팀장" }),
+      authorId,
+    ),
+    false,
+  );
+  assert.equal(canDeleteAnnouncement(employee({ id: authorId }), authorId), false);
+});
+
+test("회의는 등록자 또는 관리자만 삭제한다", () => {
+  const creatorId = "00000000-0000-4000-8000-000000000002";
+  assert.equal(canDeleteMeeting(employee({ id: creatorId }), creatorId), true);
+  assert.equal(canDeleteMeeting(employee(), creatorId), false);
+  assert.equal(canDeleteMeeting(employee({ role: "admin" }), creatorId), true);
 });

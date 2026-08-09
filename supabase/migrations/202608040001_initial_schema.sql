@@ -222,6 +222,40 @@ create table if not exists public.company_holidays (
   constraint company_holidays_description_length check (description is null or char_length(description) <= 2000)
 );
 
+create table if not exists public.meetings (
+  id uuid primary key default gen_random_uuid(),
+  subject varchar(120) not null,
+  content text not null,
+  meeting_date date not null,
+  start_time time not null,
+  end_time time not null,
+  created_by uuid not null references public.employees(id) on delete restrict,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint meetings_subject_length check (char_length(trim(subject)) between 1 and 120),
+  constraint meetings_content_length check (char_length(trim(content)) between 1 and 5000),
+  constraint meetings_time_range check (end_time > start_time)
+);
+
+create table if not exists public.meeting_participants (
+  meeting_id uuid not null references public.meetings(id) on delete cascade,
+  employee_id uuid not null references public.employees(id) on delete restrict,
+  created_at timestamptz not null default now(),
+  primary key (meeting_id, employee_id)
+);
+
+create table if not exists public.announcements (
+  id uuid primary key default gen_random_uuid(),
+  title varchar(120) not null,
+  content text not null,
+  created_by uuid not null references public.employees(id) on delete restrict,
+  meeting_id uuid unique references public.meetings(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint announcements_title_length check (char_length(trim(title)) between 1 and 120),
+  constraint announcements_content_length check (char_length(trim(content)) between 1 and 5000)
+);
+
 create table if not exists public.activity_logs (
   id uuid primary key default gen_random_uuid(),
   employee_id uuid references public.employees(id) on delete set null,
@@ -264,6 +298,12 @@ create index if not exists activity_logs_target_idx
   on public.activity_logs (target_type, target_id, created_at desc);
 create index if not exists login_attempts_guard_idx
   on public.login_attempts (login_id, ip_hash, created_at desc);
+create index if not exists announcements_created_at_idx
+  on public.announcements (created_at desc);
+create index if not exists meetings_schedule_idx
+  on public.meetings (meeting_date, start_time);
+create index if not exists meeting_participants_employee_idx
+  on public.meeting_participants (employee_id, meeting_id);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -289,6 +329,14 @@ drop trigger if exists leave_requests_set_updated_at on public.leave_requests;
 create trigger leave_requests_set_updated_at before update on public.leave_requests
 for each row execute function public.set_updated_at();
 
+drop trigger if exists announcements_set_updated_at on public.announcements;
+create trigger announcements_set_updated_at before update on public.announcements
+for each row execute function public.set_updated_at();
+
+drop trigger if exists meetings_set_updated_at on public.meetings;
+create trigger meetings_set_updated_at before update on public.meetings
+for each row execute function public.set_updated_at();
+
 -- 커스텀 직원 세션을 사용하므로 데이터 접근은 서버의 service role을 통해서만 수행합니다.
 alter table public.employees enable row level security;
 alter table public.sessions enable row level security;
@@ -297,6 +345,9 @@ alter table public.task_attachments enable row level security;
 alter table public.task_participants enable row level security;
 alter table public.leave_requests enable row level security;
 alter table public.company_holidays enable row level security;
+alter table public.announcements enable row level security;
+alter table public.meetings enable row level security;
+alter table public.meeting_participants enable row level security;
 alter table public.activity_logs enable row level security;
 alter table public.login_attempts enable row level security;
 
@@ -307,6 +358,9 @@ revoke all on table public.task_attachments from anon, authenticated;
 revoke all on table public.task_participants from anon, authenticated;
 revoke all on table public.leave_requests from anon, authenticated;
 revoke all on table public.company_holidays from anon, authenticated;
+revoke all on table public.announcements from anon, authenticated;
+revoke all on table public.meetings from anon, authenticated;
+revoke all on table public.meeting_participants from anon, authenticated;
 revoke all on table public.activity_logs from anon, authenticated;
 revoke all on table public.login_attempts from anon, authenticated;
 

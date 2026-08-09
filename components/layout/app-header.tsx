@@ -11,6 +11,8 @@ import type { WorkspaceUser } from "@/components/layout/workspace-user";
 
 const routeTitles: Record<string, { title: string; description: string }> = {
   "/calendar": { title: "캘린더", description: "팀의 업무와 휴가 일정을 확인하세요" },
+  "/announcements": { title: "공지사항", description: "회사 공지와 주요 안내를 확인하세요" },
+  "/meetings": { title: "회의실", description: "회의를 등록하고 참여자를 선택하세요" },
   "/employees": { title: "직원 목록", description: "함께 일하는 동료를 확인하세요" },
   "/leave/new": { title: "휴가 신청", description: "새 휴가 신청서를 작성하세요" },
   "/tasks/new": { title: "업무 등록", description: "새 업무 일정을 등록하세요" },

@@ -1,7 +1,9 @@
 import {
+  BriefcaseBusiness,
   CalendarDays,
   ClipboardPlus,
   ContactRound,
+  Megaphone,
   Settings,
   ShieldCheck,
   UserRound,
@@ -10,9 +12,11 @@ import {
 
 export const mainNavigation = [
   { href: "/calendar", label: "캘린더", icon: CalendarDays },
+  { href: "/tasks/new", label: "업무 등록", icon: BriefcaseBusiness },
   { href: "/employees", label: "직원 목록", icon: ContactRound },
   { href: "/leave/new", label: "휴가 신청", icon: ClipboardPlus },
-  { href: "/tasks/new", label: "업무 등록", icon: CalendarDays },
+  { href: "/meetings", label: "회의실", icon: UsersRound },
+  { href: "/announcements", label: "공지사항", icon: Megaphone },
   { href: "/my-profile", label: "내 정보", icon: UserRound },
 ] as const;
 

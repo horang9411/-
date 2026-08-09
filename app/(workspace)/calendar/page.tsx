@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 
+import { AnnouncementBoard } from "@/components/announcements/announcement-board";
 import { WorkspaceCalendar } from "@/components/calendar/workspace-calendar";
+import {
+  canDeleteAnnouncement,
+  canPublishAnnouncement,
+} from "@/lib/announcements/permissions";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
 import { canViewAllDepartments } from "@/lib/employees/permissions";
@@ -37,7 +42,7 @@ export default async function CalendarPage() {
   const scopedEmployees = employeeScopeResult.data ?? [];
   const visibleEmployeeIds = scopedEmployees.map((employee) => employee.id);
 
-  const [taskResult, leaveResult, holidayResult] = await Promise.all([
+  const [taskResult, leaveResult, holidayResult, announcementResult] = await Promise.all([
     supabase
       .from("tasks")
       .select("id, title, description, owner_id, department, start_date, end_date")
@@ -54,18 +59,46 @@ export default async function CalendarPage() {
       .from("company_holidays")
       .select("id, title, holiday_date, description")
       .order("holiday_date", { ascending: true }),
+    supabase
+      .from("announcements")
+      .select("id, title, content, created_by, meeting_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   if (
     taskResult.error ||
     leaveResult.error ||
-    holidayResult.error
+    holidayResult.error ||
+    (announcementResult.error &&
+      announcementResult.error.code !== "PGRST205" &&
+      announcementResult.error.code !== "PGRST204" &&
+      announcementResult.error.code !== "42P01")
   ) {
     throw new Error("캘린더 데이터를 불러오지 못했습니다.");
   }
 
   const tasks = taskResult.data ?? [];
   const leaves = leaveResult.data ?? [];
+  const announcements = announcementResult.error
+    ? []
+    : (announcementResult.data ?? []);
+  const announcementAuthorIds = [
+    ...new Set(announcements.map((announcement) => announcement.created_by)),
+  ];
+  const { data: announcementAuthors, error: announcementAuthorError } =
+    announcementAuthorIds.length
+      ? await supabase
+          .from("employees")
+          .select("id, name, position")
+          .in("id", announcementAuthorIds)
+      : { data: [], error: null };
+  if (announcementAuthorError) {
+    throw new Error("공지 작성자 정보를 불러오지 못했습니다.");
+  }
+  const announcementAuthorById = new Map(
+    (announcementAuthors ?? []).map((author) => [author.id, author]),
+  );
   const { data: taskParticipantRows, error: taskParticipantError } = tasks.length
     ? await supabase
         .from("task_participants")
@@ -186,25 +219,45 @@ export default async function CalendarPage() {
   });
 
   return (
-    <WorkspaceCalendar
-      tasks={calendarTasks}
-      leaves={calendarLeaves}
-      holidays={(holidayResult.data ?? []).map((holiday) => ({
-        id: holiday.id,
-        title: holiday.title,
-        holidayDate: holiday.holiday_date,
-        description: holiday.description,
-      }))}
-      employees={[...calendarEmployeeMap.entries()].map(([id, name]) => ({
-        id,
-        name,
-      }))}
-      defaultMode={settings.defaultCalendarTab}
-      weekStartsOn={settings.weekStartsOn}
-      companyName={settings.companyName}
-      canViewAdminOverview={currentEmployee.role === "admin"}
-      canViewEveryDepartment={canSeeEveryDepartment}
-      currentDepartment={currentEmployee.departmentCode}
-    />
+    <>
+      <AnnouncementBoard
+        announcements={announcements.map((announcement) => {
+          const author = announcementAuthorById.get(announcement.created_by);
+          return {
+            id: announcement.id,
+            title: announcement.title,
+            content: announcement.content,
+            createdAt: announcement.created_at,
+            authorName: author?.name ?? "알 수 없는 직원",
+            authorPosition: author ? positionLabel(author.position) : "직원",
+            canDelete:
+              !announcement.meeting_id &&
+              canDeleteAnnouncement(currentEmployee, announcement.created_by),
+          };
+        })}
+        canPublish={canPublishAnnouncement(currentEmployee)}
+        schemaAvailable={!announcementResult.error}
+      />
+      <WorkspaceCalendar
+        tasks={calendarTasks}
+        leaves={calendarLeaves}
+        holidays={(holidayResult.data ?? []).map((holiday) => ({
+          id: holiday.id,
+          title: holiday.title,
+          holidayDate: holiday.holiday_date,
+          description: holiday.description,
+        }))}
+        employees={[...calendarEmployeeMap.entries()].map(([id, name]) => ({
+          id,
+          name,
+        }))}
+        defaultMode={settings.defaultCalendarTab}
+        weekStartsOn={settings.weekStartsOn}
+        companyName={settings.companyName}
+        canViewAdminOverview={currentEmployee.role === "admin"}
+        canViewEveryDepartment={canSeeEveryDepartment}
+        currentDepartment={currentEmployee.departmentCode}
+      />
+    </>
   );
 }
