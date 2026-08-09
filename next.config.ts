@@ -16,6 +16,12 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 30,
+    },
+  },
   images: {
     remotePatterns: [
       {

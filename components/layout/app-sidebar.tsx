@@ -46,6 +46,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
       <div className="flex h-[72px] items-center justify-center border-b border-[#e8ece9] px-2 lg:px-5">
         <Link
           href="/calendar"
+          prefetch
           onClick={() => beginNavigation("/calendar")}
           aria-label="파스텔크래프트 캘린더로 이동"
           className="flex h-10 w-[56px] items-center justify-center overflow-hidden rounded-[9px] border border-[#e5e9e6] bg-white px-1.5 shadow-sm lg:h-12 lg:w-full lg:px-3"
@@ -100,6 +101,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
       <Link
         href="/my-profile"
+        prefetch
         onClick={() => beginNavigation("/my-profile")}
         className="m-3 hidden items-center gap-3 rounded-[14px] border border-[#e2e7e3] bg-white p-3 transition hover:border-[#cbd8cf] hover:bg-[#fbfdfb] lg:flex"
       >
@@ -152,6 +154,7 @@ function NavGroup({
           <Link
             key={item.href}
             href={item.href}
+            prefetch
             onClick={() => onNavigate(item.href)}
             title={item.label}
             className={cn(
