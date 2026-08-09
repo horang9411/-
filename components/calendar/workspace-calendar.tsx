@@ -13,15 +13,12 @@ import {
   CalendarDays,
   CalendarOff,
   Check,
-  ChevronDown,
   Clock3,
-  Filter,
   Link2,
   Loader2,
   MapPin,
   Paperclip,
   Pencil,
-  RotateCcw,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,14 +27,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { adminPositionOptions } from "@/lib/employees/constants";
-import { leaveTypeOptions } from "@/lib/leave/constants";
 import type {
   CompanyHolidayCalendarItem,
   LeaveCalendarItem,
 } from "@/lib/leave/types";
 import type {
-  TaskCalendarEmployeeOption,
   TaskCalendarItem,
 } from "@/lib/tasks/types";
 import { cn } from "@/lib/utils";
@@ -149,75 +143,34 @@ export function WorkspaceCalendar({
   tasks,
   leaves,
   holidays,
-  employees,
   defaultMode,
   weekStartsOn,
   companyName,
   canViewAdminOverview,
-  canViewEveryDepartment,
-  currentDepartment,
 }: {
   tasks: TaskCalendarItem[];
   leaves: LeaveCalendarItem[];
   holidays: CompanyHolidayCalendarItem[];
-  employees: TaskCalendarEmployeeOption[];
   defaultMode: CalendarMode;
   weekStartsOn: 0 | 1;
   companyName: string;
   canViewAdminOverview: boolean;
-  canViewEveryDepartment: boolean;
-  currentDepartment: string;
 }) {
   const router = useRouter();
   const calendarRef = useRef<FullCalendar | null>(null);
   const [mode, setMode] = useState<CalendarMode>(defaultMode);
   const [selected, setSelected] = useState<EventClickArg["event"] | null>(null);
-  const [employeeFilter, setEmployeeFilter] = useState("all");
-  const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [positionFilter, setPositionFilter] = useState("all");
-  const [leaveTypeFilter, setLeaveTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [isScheduleSaving, setIsScheduleSaving] = useState(false);
   const [scheduleNotice, setScheduleNotice] = useState<{
     tone: "success" | "error";
     message: string;
   } | null>(null);
-  const filteredTasks = useMemo(
-    () => tasks.filter((task) =>
-      (employeeFilter === "all" || task.ownerId === employeeFilter || task.participants.some((participant) => participant.id === employeeFilter)) &&
-      (departmentFilter === "all" || task.department === departmentFilter) &&
-      (positionFilter === "all" || task.ownerPositionCode === positionFilter)),
-    [departmentFilter, employeeFilter, positionFilter, tasks],
-  );
-  const filteredLeaves = useMemo(
-    () => leaves.filter((leave) =>
-      (employeeFilter === "all" || leave.employeeId === employeeFilter) &&
-      (departmentFilter === "all" || leave.department === departmentFilter) &&
-      (positionFilter === "all" || leave.employeePositionCode === positionFilter) &&
-      (leaveTypeFilter === "all" || leave.leaveType === leaveTypeFilter) &&
-      (statusFilter === "all" || leave.status === statusFilter)),
-    [
-      departmentFilter,
-      employeeFilter,
-      leaveTypeFilter,
-      leaves,
-      positionFilter,
-      statusFilter,
-    ],
-  );
   const events = useMemo(
     () => mode === "task"
-      ? taskEvents(filteredTasks)
-      : [...leaveEvents(filteredLeaves), ...holidayEvents(holidays, companyName)],
-    [companyName, filteredLeaves, filteredTasks, holidays, mode],
+      ? taskEvents(tasks)
+      : [...leaveEvents(leaves), ...holidayEvents(holidays, companyName)],
+    [companyName, holidays, leaves, mode, tasks],
   );
-  const activeFilterCount = [
-    employeeFilter,
-    departmentFilter,
-    positionFilter,
-    ...(mode === "leave" ? [leaveTypeFilter] : []),
-    ...(mode === "leave" ? [statusFilter] : []),
-  ].filter((value) => value !== "all").length;
 
   useEffect(() => {
     if (window.matchMedia("(max-width: 639px)").matches) {
@@ -227,20 +180,7 @@ export function WorkspaceCalendar({
 
   function changeMode(nextMode: CalendarMode) {
     setMode(nextMode);
-    setEmployeeFilter("all");
-    setDepartmentFilter("all");
-    setPositionFilter("all");
-    setLeaveTypeFilter("all");
-    setStatusFilter("all");
     setSelected(null);
-  }
-
-  function resetTaskFilters() {
-    setEmployeeFilter("all");
-    setDepartmentFilter("all");
-    setPositionFilter("all");
-    setLeaveTypeFilter("all");
-    setStatusFilter("all");
   }
 
   async function saveScheduleChange(event: EventApi, revert: () => void) {
@@ -320,81 +260,7 @@ export function WorkspaceCalendar({
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <FilterSelect
-                label="직원"
-                value={employeeFilter}
-                onChange={setEmployeeFilter}
-                options={[
-                  { value: "all", label: "전체 직원" },
-                  ...employees.map((employee) => ({
-                    value: employee.id,
-                    label: employee.name,
-                  })),
-                ]}
-              />
-              <FilterSelect
-                label="부서"
-                value={departmentFilter}
-                onChange={setDepartmentFilter}
-                options={[
-                  {
-                    value: "all",
-                    label: canViewEveryDepartment ? "전체 부서" : "내 부서 전체",
-                  },
-                  ...(canViewEveryDepartment || currentDepartment === "web"
-                    ? [{ value: "web", label: "웹팀" }]
-                    : []),
-                  ...(canViewEveryDepartment || currentDepartment === "logistics"
-                    ? [{ value: "logistics", label: "물류" }]
-                    : []),
-                ]}
-              />
-              <FilterSelect
-                label="직급"
-                value={positionFilter}
-                onChange={setPositionFilter}
-                options={[
-                  { value: "all", label: "전체 직급" },
-                  ...adminPositionOptions,
-                ]}
-              />
-              {mode === "leave" && (
-                <FilterSelect
-                  label="휴가 종류"
-                  value={leaveTypeFilter}
-                  onChange={setLeaveTypeFilter}
-                  options={[
-                    { value: "all", label: "전체 휴가 종류" },
-                    ...leaveTypeOptions,
-                  ]}
-                />
-              )}
-              {mode === "leave" && (
-                <FilterSelect
-                  label="상태"
-                  value={statusFilter}
-                  onChange={setStatusFilter}
-                  options={[
-                    { value: "all", label: "전체 상태" },
-                    { value: "pending", label: "승인 대기" },
-                    { value: "approved", label: "승인" },
-                    { value: "rejected", label: "반려" },
-                    { value: "cancelled", label: "취소" },
-                  ]}
-                />
-              )}
-              {activeFilterCount > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={resetTaskFilters}
-                  title="필터 초기화"
-                >
-                  <RotateCcw className="size-4" /> 초기화
-                </Button>
-              )}
+            <div className="flex items-center">
               <Button asChild className="ml-0 xl:ml-1">
                 <Link href={mode === "task" ? "/tasks/new" : "/leave/new"}>
                   <CalendarPlus className="size-[17px]" />
@@ -421,7 +287,7 @@ export function WorkspaceCalendar({
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0ee] pb-4">
               <div className="flex items-center gap-2.5">
                 <span className="flex size-8 items-center justify-center rounded-[10px] bg-[#e7f6ec] text-[#3a7452]">
-                  <Filter className="size-4" />
+                  <CalendarDays className="size-4" />
                 </span>
                 <div>
                   <p className="text-sm font-bold text-[#344039]">
@@ -429,8 +295,8 @@ export function WorkspaceCalendar({
                   </p>
                   <p className="text-[11px] text-[#929a95]">
                     {mode === "task"
-                      ? `등록된 업무 ${filteredTasks.length}건`
-                      : `휴가 ${filteredLeaves.length}건 · 회사 휴무일 ${holidays.length}건`}
+                      ? `등록된 업무 ${tasks.length}건`
+                      : `휴가 ${leaves.length}건 · 회사 휴무일 ${holidays.length}건`}
                   </p>
                 </div>
               </div>
@@ -482,8 +348,8 @@ export function WorkspaceCalendar({
           {canViewAdminOverview && (
             <ScheduleOverview
               mode={mode}
-              tasks={filteredTasks}
-              leaves={filteredLeaves}
+              tasks={tasks}
+              leaves={leaves}
             />
           )}
         </div>
@@ -557,10 +423,7 @@ function ScheduleOverview({
               {mode === "task" ? "직원별 업무 한눈에 보기" : "직원별 휴가 일정 한눈에 보기"}
             </h3>
             <p className="mt-0.5 text-[11px] text-[#89928d]">
-              {mode === "task"
-                ? "위에서 선택한 직원·부서·직급 필터가 함께 적용됩니다."
-                : "위에서 선택한 직원·부서·직급·휴가 종류·상태 필터가 함께 적용됩니다."
-              }
+              현재 조회 권한이 있는 전체 일정을 표시합니다.
             </p>
           </div>
         </div>
@@ -589,7 +452,7 @@ function ScheduleOverview({
         </div>
       ) : (
         <div className="rounded-[12px] border border-dashed border-[#d9e1dc] bg-white py-9 text-center text-[12px] text-[#87918b]">
-          선택한 조건에 표시할 {mode === "task" ? "업무" : "휴가 일정"}이 없습니다.
+          표시할 {mode === "task" ? "업무" : "휴가 일정"}이 없습니다.
         </div>
       )}
     </section>
@@ -658,30 +521,6 @@ function CalendarTab({
     >
       {children}
     </button>
-  );
-}
-
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <label className="relative">
-      <span className="sr-only">{label} 필터</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-10 appearance-none rounded-[10px] border border-[#dfe4e1] bg-white py-0 pl-3 pr-8 text-[13px] font-semibold text-[#59635d] outline-none transition hover:bg-[#f8faf8] focus:border-[#9bcfaf] focus:ring-3 focus:ring-emerald-100">
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#8b948f]" />
-    </label>
   );
 }
 

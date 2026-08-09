@@ -131,16 +131,6 @@ export default async function CalendarPage() {
     ids.push(participant.employee_id);
     participantIdsByTask.set(participant.task_id, ids);
   });
-  const calendarEmployeeMap = new Map(
-    scopedEmployees
-      .filter((employee) => employee.account_status === "active")
-      .map((employee) => [employee.id, employee.name]),
-  );
-  owners.forEach((owner) => {
-    if (!calendarEmployeeMap.has(owner.id)) {
-      calendarEmployeeMap.set(owner.id, `${owner.name} (사용 중지)`);
-    }
-  });
 
   const calendarTasks = tasks.map((task) => {
     const owner = ownerById.get(task.owner_id);
@@ -246,16 +236,10 @@ export default async function CalendarPage() {
           holidayDate: holiday.holiday_date,
           description: holiday.description,
         }))}
-        employees={[...calendarEmployeeMap.entries()].map(([id, name]) => ({
-          id,
-          name,
-        }))}
         defaultMode={settings.defaultCalendarTab}
         weekStartsOn={settings.weekStartsOn}
         companyName={settings.companyName}
         canViewAdminOverview={currentEmployee.role === "admin"}
-        canViewEveryDepartment={canSeeEveryDepartment}
-        currentDepartment={currentEmployee.departmentCode}
       />
     </>
   );
