@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { flushSync } from "react-dom";
 
 import {
   adminNavigation,
@@ -29,7 +30,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const isAdmin = user.role === "admin";
   const canApproveLeave = isAdmin || user.positionCode === "team_lead";
   const beginNavigation = (href: string) => {
-    if (href !== pathname) setPendingNavigation({ href, fromPath: pathname });
+    if (href !== pathname) {
+      flushSync(() => setPendingNavigation({ href, fromPath: pathname }));
+    }
   };
 
   return (
