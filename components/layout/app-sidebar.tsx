@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 import {
@@ -19,6 +19,30 @@ type AppSidebarProps = {
   user: WorkspaceUser;
 };
 
+const NEW_CONTENT_CATEGORIES = [
+  "calendar",
+  "employees",
+  "meetings",
+  "announcements",
+] as const;
+type NewContentCategory = (typeof NEW_CONTENT_CATEGORIES)[number];
+type NewContentCounts = Record<NewContentCategory, number>;
+
+const emptyNewContentCounts = (): NewContentCounts => ({
+  calendar: 0,
+  employees: 0,
+  meetings: 0,
+  announcements: 0,
+});
+
+function newContentCategoryForPath(path: string): NewContentCategory | null {
+  if (path === "/calendar") return "calendar";
+  if (path === "/employees" || path.startsWith("/employees/")) return "employees";
+  if (path === "/meetings") return "meetings";
+  if (path === "/announcements") return "announcements";
+  return null;
+}
+
 export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname();
   const [pendingNavigation, setPendingNavigation] = useState<{
@@ -30,6 +54,108 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const isAdmin = user.role === "admin";
   const canApproveLeave = isAdmin || user.positionCode === "team_lead";
   const [pendingLeaveCount, setPendingLeaveCount] = useState<number | null>(null);
+  const [newContentCounts, setNewContentCounts] =
+    useState<NewContentCounts>(emptyNewContentCounts);
+  const seenAtRef = useRef<Partial<Record<NewContentCategory, string>>>({});
+  const latestServerTimeRef = useRef<string | null>(null);
+  const storageLoadedRef = useRef(false);
+
+  const markNewContentSeen = (path: string) => {
+    const category = newContentCategoryForPath(path);
+    if (!category) return;
+    const seenAt = latestServerTimeRef.current ?? new Date().toISOString();
+    seenAtRef.current = { ...seenAtRef.current, [category]: seenAt };
+    setNewContentCounts((current) => ({ ...current, [category]: 0 }));
+    try {
+      localStorage.setItem(
+        `pc-navigation-seen:${user.id}`,
+        JSON.stringify(seenAtRef.current),
+      );
+    } catch {
+      // 브라우저 저장소를 사용할 수 없어도 현재 화면의 숫자는 정상 처리합니다.
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const storageKey = `pc-navigation-seen:${user.id}`;
+
+    if (!storageLoadedRef.current) {
+      try {
+        const stored = JSON.parse(localStorage.getItem(storageKey) ?? "{}") as Record<
+          string,
+          unknown
+        >;
+        seenAtRef.current = Object.fromEntries(
+          NEW_CONTENT_CATEGORIES.flatMap((category) => {
+            const value = stored[category];
+            return typeof value === "string" && !Number.isNaN(Date.parse(value))
+              ? [[category, value]]
+              : [];
+          }),
+        );
+      } catch {
+        seenAtRef.current = {};
+      }
+      storageLoadedRef.current = true;
+    }
+
+    const loadNewContentCounts = async () => {
+      try {
+        const params = new URLSearchParams();
+        NEW_CONTENT_CATEGORIES.forEach((category) => {
+          const seenAt = seenAtRef.current[category];
+          if (seenAt) params.set(`${category}Since`, seenAt);
+        });
+        const response = await fetch(`/api/navigation/new-counts?${params}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const result = (await response.json()) as {
+          counts?: Partial<NewContentCounts>;
+          checkedAt?: string;
+        };
+        if (!active || !result.checkedAt || !result.counts) return;
+
+        latestServerTimeRef.current = result.checkedAt;
+        const activeCategory = newContentCategoryForPath(pathname);
+        NEW_CONTENT_CATEGORIES.forEach((category) => {
+          if (!seenAtRef.current[category] || category === activeCategory) {
+            seenAtRef.current[category] = result.checkedAt;
+          }
+        });
+        localStorage.setItem(storageKey, JSON.stringify(seenAtRef.current));
+        setNewContentCounts({
+          calendar: activeCategory === "calendar" ? 0 : (result.counts.calendar ?? 0),
+          employees: activeCategory === "employees" ? 0 : (result.counts.employees ?? 0),
+          meetings: activeCategory === "meetings" ? 0 : (result.counts.meetings ?? 0),
+          announcements:
+            activeCategory === "announcements"
+              ? 0
+              : (result.counts.announcements ?? 0),
+        });
+      } catch {
+        // 일시적인 오류가 발생하면 마지막으로 확인한 숫자를 유지합니다.
+      }
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void loadNewContentCounts();
+    };
+    void loadNewContentCounts();
+    const intervalId = window.setInterval(loadNewContentCounts, 30_000);
+    window.addEventListener("focus", loadNewContentCounts);
+    window.addEventListener("workspace-content-created", loadNewContentCounts);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", loadNewContentCounts);
+      window.removeEventListener("workspace-content-created", loadNewContentCounts);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [pathname, user.id]);
 
   useEffect(() => {
     if (!canApproveLeave) return;
@@ -68,6 +194,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
     };
   }, [canApproveLeave]);
   const beginNavigation = (href: string) => {
+    markNewContentSeen(href);
     if (href !== pathname) {
       flushSync(() => setPendingNavigation({ href, fromPath: pathname }));
     }
@@ -106,6 +233,12 @@ export function AppSidebar({ user }: AppSidebarProps) {
           pathname={pathname}
           pendingHref={pendingHref}
           onNavigate={beginNavigation}
+          badgeByHref={{
+            "/calendar": newContentCounts.calendar,
+            "/employees": newContentCounts.employees,
+            "/meetings": newContentCounts.meetings,
+            "/announcements": newContentCounts.announcements,
+          }}
         />
 
         {canApproveLeave && (
@@ -216,7 +349,7 @@ function NavGroup({
             <span className="hidden min-w-0 flex-1 lg:inline">{item.label}</span>
             {typeof badgeCount === "number" && badgeCount > 0 && (
               <span
-                aria-label={`처리할 휴가 신청 ${badgeCount}건`}
+                aria-label={`${item.label} 새 알림 ${badgeCount}건`}
                 className="absolute right-1 top-1 flex min-w-5 items-center justify-center rounded-full bg-[#f1c84c] px-1.5 py-0.5 text-[10px] font-black leading-4 text-[#594708] shadow-sm lg:static lg:text-[11px]"
               >
                 {badgeCount > 99 ? "99+" : badgeCount}

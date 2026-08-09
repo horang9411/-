@@ -179,6 +179,7 @@ export function MeetingRoom({
           onClose={() => setIsOpen(false)}
           onSaved={() => {
             setIsOpen(false);
+            window.dispatchEvent(new Event("workspace-content-created"));
             router.refresh();
           }}
         />

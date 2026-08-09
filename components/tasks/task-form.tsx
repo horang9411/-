@@ -160,6 +160,7 @@ export function TaskForm({
       const result = (await response.json()) as { message?: string; id?: string };
       if (!response.ok) throw new Error(result.message ?? "업무를 저장하지 못했습니다.");
 
+      if (!initialTask) window.dispatchEvent(new Event("workspace-content-created"));
       router.push(`/calendar?task=${result.id ?? initialTask?.id ?? ""}`);
     } catch (error) {
       setServerError(

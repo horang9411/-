@@ -185,6 +185,7 @@ export function AnnouncementBoard({
           onClose={() => setIsOpen(false)}
           onSaved={() => {
             setIsOpen(false);
+            window.dispatchEvent(new Event("workspace-content-created"));
             router.refresh();
           }}
         />
