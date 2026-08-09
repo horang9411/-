@@ -53,8 +53,6 @@ export function AnnouncementBoard({
     [announcements, displayAll, isExpanded],
   );
 
-  if (!canPublish && announcements.length === 0) return null;
-
   async function deleteAnnouncement(announcement: AnnouncementItem) {
     if (!window.confirm(`“${announcement.title}” 공지를 삭제할까요?`)) return;
     setDeletingId(announcement.id);
