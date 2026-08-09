@@ -8,8 +8,6 @@ import { getSystemSettings } from "@/lib/settings/system-settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "관리자 설정" };
-export const dynamic = "force-dynamic";
-
 export default async function AdminSettingsPage() {
   const currentEmployee = await requireCurrentEmployee();
   if (currentEmployee.role !== "admin") redirect("/calendar");

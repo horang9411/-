@@ -5,12 +5,14 @@ import { TaskForm } from "@/components/tasks/task-form";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
 import { canViewAllDepartments } from "@/lib/employees/permissions";
-import { createProfileImageSignedUrl } from "@/lib/storage/profile-image";
+import {
+  createProfileImageSignedUrl,
+  createProfileImageSignedUrlMap,
+} from "@/lib/storage/profile-image";
 import { canManageTask } from "@/lib/tasks/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "업무 등록" };
-export const dynamic = "force-dynamic";
 
 export default async function TaskNewPage({
   searchParams,
@@ -31,14 +33,20 @@ export default async function TaskNewPage({
   }
 
   const { data: employees } = await employeeQuery;
-  const employeeOptions = await Promise.all((employees ?? []).map(async (employee) => ({
+  const profileImageUrlByValue = await createProfileImageSignedUrlMap(
+    supabase,
+    (employees ?? []).map((employee) => employee.profile_image_url),
+  );
+  const employeeOptions = (employees ?? []).map((employee) => ({
     id: employee.id,
     name: employee.name,
     position: positionLabel(employee.position),
     department: employee.department,
     departmentLabel: departmentLabel(employee.department),
-    imageUrl: await createProfileImageSignedUrl(supabase, employee.profile_image_url),
-  })));
+    imageUrl: employee.profile_image_url
+      ? (profileImageUrlByValue.get(employee.profile_image_url) ?? null)
+      : null,
+  }));
 
   let initialTask = null;
   if (editId) {

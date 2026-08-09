@@ -7,7 +7,7 @@ import {
 } from "@/lib/auth/api";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
 import { canViewAllDepartments } from "@/lib/employees/permissions";
-import { createProfileImageSignedUrl } from "@/lib/storage/profile-image";
+import { createProfileImageSignedUrlMap } from "@/lib/storage/profile-image";
 import { validateTaskAttachments } from "@/lib/tasks/files";
 import {
   taskAttachmentFiles,
@@ -58,21 +58,22 @@ export async function GET() {
     );
   }
 
-  const ownerEntries = await Promise.all(
-    (owners ?? []).map(async (owner) => [
+  const profileImageUrlByValue = await createProfileImageSignedUrlMap(
+    supabase,
+    (owners ?? []).map((owner) => owner.profile_image_url),
+  );
+  const ownerEntries = (owners ?? []).map((owner) => [
       owner.id,
       {
         id: owner.id,
         name: owner.name,
         position: positionLabel(owner.position),
         department: departmentLabel(owner.department),
-        imageUrl: await createProfileImageSignedUrl(
-          supabase,
-          owner.profile_image_url,
-        ),
+        imageUrl: owner.profile_image_url
+          ? (profileImageUrlByValue.get(owner.profile_image_url) ?? null)
+          : null,
       },
-    ] as const),
-  );
+    ] as const);
   const ownerById = new Map(ownerEntries);
   const participantIdsByTask = new Map<string, string[]>();
   (participantRows ?? []).forEach((participant) => {

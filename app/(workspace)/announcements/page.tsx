@@ -10,8 +10,6 @@ import { positionLabel } from "@/lib/employees/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "공지사항" };
-export const dynamic = "force-dynamic";
-
 export default async function AnnouncementsPage() {
   const currentEmployee = await requireCurrentEmployee();
   const supabase = createAdminClient();

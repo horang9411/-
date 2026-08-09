@@ -8,8 +8,6 @@ import { createProfileImageSignedUrl } from "@/lib/storage/profile-image";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "내 정보" };
-export const dynamic = "force-dynamic";
-
 export default async function MyProfilePage() {
   const currentEmployee = await requireCurrentEmployee();
   const supabase = createAdminClient();

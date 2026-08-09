@@ -3,14 +3,12 @@ import { redirect } from "next/navigation";
 
 import { AdminEmployeesManager } from "@/components/admin/admin-employees-manager";
 import { requireCurrentEmployee } from "@/lib/auth/session";
-import { createProfileImageSignedUrl } from "@/lib/storage/profile-image";
+import { createProfileImageSignedUrlMap } from "@/lib/storage/profile-image";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
   title: "직원 관리",
 };
-
-export const dynamic = "force-dynamic";
 
 export default async function AdminEmployeesPage() {
   const currentEmployee = await requireCurrentEmployee();
@@ -43,13 +41,11 @@ export default async function AdminEmployeesPage() {
   const employeeNameById = new Map(
     employeeRows.map((employee) => [employee.id, employee.name]),
   );
-  const employeesWithImage = await Promise.all(
-    employeeRows.map(async (employee) => {
-      const imageUrl = await createProfileImageSignedUrl(
-        supabase,
-        employee.profile_image_url,
-      );
-
+  const profileImageUrlByValue = await createProfileImageSignedUrlMap(
+    supabase,
+    employeeRows.map((employee) => employee.profile_image_url),
+  );
+  const employeesWithImage = employeeRows.map((employee) => {
       return {
         id: employee.id,
         loginId: employee.login_id,
@@ -57,15 +53,16 @@ export default async function AdminEmployeesPage() {
         position: employee.position,
         department: employee.department,
         phone: employee.phone,
-        imageUrl,
+        imageUrl: employee.profile_image_url
+          ? (profileImageUrlByValue.get(employee.profile_image_url) ?? null)
+          : null,
         role: employee.role,
         accountStatus: employee.account_status,
         createdAt: employee.created_at,
         updatedAt: employee.updated_at,
         lastLoginAt: employee.last_login_at,
       };
-    }),
-  );
+    });
 
   const activityLogs = (logs ?? []).map((log) => ({
     id: log.id,

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { cache } from "react";
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -39,11 +40,9 @@ export function hashSessionToken(token: string, pepper: string) {
   return createHash("sha256").update(token).update(pepper).digest("hex");
 }
 
-export async function getCurrentSession({
-  includeProfileImage = true,
-}: {
-  includeProfileImage?: boolean;
-} = {}): Promise<CurrentSessionResult> {
+const getCurrentSessionCached = cache(async (
+  includeProfileImage: boolean,
+): Promise<CurrentSessionResult> => {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
@@ -104,6 +103,14 @@ export async function getCurrentSession({
   } catch {
     return { employee: null, reason: "invalid" };
   }
+});
+
+export async function getCurrentSession({
+  includeProfileImage = true,
+}: {
+  includeProfileImage?: boolean;
+} = {}): Promise<CurrentSessionResult> {
+  return getCurrentSessionCached(includeProfileImage);
 }
 
 export async function getCurrentEmployee(): Promise<CurrentEmployee | null> {

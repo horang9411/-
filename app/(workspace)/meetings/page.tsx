@@ -7,8 +7,6 @@ import { canDeleteMeeting } from "@/lib/meetings/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "회의실" };
-export const dynamic = "force-dynamic";
-
 export default async function MeetingsPage() {
   const currentEmployee = await requireCurrentEmployee();
   const supabase = createAdminClient();

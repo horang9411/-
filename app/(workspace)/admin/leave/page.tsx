@@ -9,12 +9,10 @@ import {
   leaveProgressLabel,
   leaveTypeLabel,
 } from "@/lib/leave/constants";
-import { createProfileImageSignedUrl } from "@/lib/storage/profile-image";
+import { createProfileImageSignedUrlMap } from "@/lib/storage/profile-image";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = { title: "휴가 승인" };
-export const dynamic = "force-dynamic";
-
 export default async function AdminLeavePage() {
   const currentEmployee = await requireCurrentEmployee();
   const isTeamLead = currentEmployee.positionCode === "team_lead";
@@ -46,8 +44,11 @@ export default async function AdminLeavePage() {
         .select("id, name, position, department, profile_image_url")
         .in("id", employeeIds)
     : { data: [] };
-  const employeeEntries = await Promise.all(
-    (employees ?? []).map(async (employee) => [
+  const profileImageUrlByValue = await createProfileImageSignedUrlMap(
+    supabase,
+    (employees ?? []).map((employee) => employee.profile_image_url),
+  );
+  const employeeEntries = (employees ?? []).map((employee) => [
       employee.id,
       {
         id: employee.id,
@@ -56,13 +57,11 @@ export default async function AdminLeavePage() {
         positionLabel: positionLabel(employee.position),
         department: employee.department,
         departmentLabel: departmentLabel(employee.department),
-        imageUrl: await createProfileImageSignedUrl(
-          supabase,
-          employee.profile_image_url,
-        ),
+        imageUrl: employee.profile_image_url
+          ? (profileImageUrlByValue.get(employee.profile_image_url) ?? null)
+          : null,
       },
-    ] as const),
-  );
+    ] as const);
   const employeeById = new Map(employeeEntries);
 
   const visibleRequests = (requests ?? []).filter((request) => {

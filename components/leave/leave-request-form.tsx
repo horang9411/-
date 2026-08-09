@@ -144,7 +144,6 @@ export function LeaveRequestForm({
       const result = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(result.message ?? "휴가 신청을 저장하지 못했습니다.");
       router.push("/leave/new?saved=1");
-      router.refresh();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "저장 중 오류가 발생했습니다.");
     }

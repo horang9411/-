@@ -161,7 +161,6 @@ export function TaskForm({
       if (!response.ok) throw new Error(result.message ?? "업무를 저장하지 못했습니다.");
 
       router.push(`/calendar?task=${result.id ?? initialTask?.id ?? ""}`);
-      router.refresh();
     } catch (error) {
       setServerError(
         error instanceof Error ? error.message : "업무 저장 중 오류가 발생했습니다.",
@@ -180,7 +179,6 @@ export function TaskForm({
       const result = (await response.json()) as { message?: string };
       if (!response.ok) throw new Error(result.message ?? "업무를 삭제하지 못했습니다.");
       router.push("/calendar");
-      router.refresh();
     } catch (error) {
       setServerError(error instanceof Error ? error.message : "업무 삭제 중 오류가 발생했습니다.");
     } finally {

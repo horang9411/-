@@ -34,7 +34,6 @@ export function AppHeader({ user }: { user: WorkspaceUser }) {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
       router.replace("/login");
-      router.refresh();
     }
   }
 

@@ -14,7 +14,7 @@ import {
   leaveProgressLabel,
   leaveTypeLabel,
 } from "@/lib/leave/constants";
-import { createProfileImageSignedUrl } from "@/lib/storage/profile-image";
+import { createProfileImageSignedUrlMap } from "@/lib/storage/profile-image";
 import { canViewTaskDetails } from "@/lib/tasks/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSystemSettings } from "@/lib/settings/system-settings";
@@ -23,12 +23,19 @@ export const metadata: Metadata = {
   title: "캘린더",
 };
 
-export const dynamic = "force-dynamic";
-
 export default async function CalendarPage() {
   const currentEmployee = await requireCurrentEmployee();
   const supabase = createAdminClient();
-  const { settings } = await getSystemSettings(supabase);
+  const settingsPromise = getSystemSettings(supabase);
+  const holidayPromise = supabase
+    .from("company_holidays")
+    .select("id, title, holiday_date, description")
+    .order("holiday_date", { ascending: true });
+  const announcementPromise = supabase
+    .from("announcements")
+    .select("id, title, content, created_by, meeting_id, created_at")
+    .order("created_at", { ascending: false })
+    .limit(20);
   const canSeeEveryDepartment = canViewAllDepartments(currentEmployee);
   let employeeScopeQuery = supabase
     .from("employees")
@@ -42,7 +49,8 @@ export default async function CalendarPage() {
   const scopedEmployees = employeeScopeResult.data ?? [];
   const visibleEmployeeIds = scopedEmployees.map((employee) => employee.id);
 
-  const [taskResult, leaveResult, holidayResult, announcementResult] = await Promise.all([
+  const [settingsResult, taskResult, leaveResult, holidayResult, announcementResult] = await Promise.all([
+    settingsPromise,
     supabase
       .from("tasks")
       .select("id, title, description, owner_id, department, start_date, end_date")
@@ -55,16 +63,10 @@ export default async function CalendarPage() {
       )
       .in("employee_id", visibleEmployeeIds)
       .order("start_date", { ascending: true }),
-    supabase
-      .from("company_holidays")
-      .select("id, title, holiday_date, description")
-      .order("holiday_date", { ascending: true }),
-    supabase
-      .from("announcements")
-      .select("id, title, content, created_by, meeting_id, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20),
+    holidayPromise,
+    announcementPromise,
   ]);
+  const { settings } = settingsResult;
 
   if (
     taskResult.error ||
@@ -86,32 +88,43 @@ export default async function CalendarPage() {
   const announcementAuthorIds = [
     ...new Set(announcements.map((announcement) => announcement.created_by)),
   ];
-  const { data: announcementAuthors, error: announcementAuthorError } =
-    announcementAuthorIds.length
-      ? await supabase
+  const announcementAuthorPromise = announcementAuthorIds.length
+    ? supabase
           .from("employees")
           .select("id, name, position")
           .in("id", announcementAuthorIds)
-      : { data: [], error: null };
+    : Promise.resolve({ data: [], error: null });
+  const taskParticipantPromise = tasks.length
+    ? supabase
+        .from("task_participants")
+        .select("task_id, employee_id")
+        .in("task_id", tasks.map((task) => task.id))
+    : Promise.resolve({ data: [], error: null });
+  const profileImagePromise = createProfileImageSignedUrlMap(
+    supabase,
+    scopedEmployees.map((employee) => employee.profile_image_url),
+  );
+  const [
+    { data: announcementAuthors, error: announcementAuthorError },
+    { data: taskParticipantRows, error: taskParticipantError },
+    profileImageUrlByValue,
+  ] = await Promise.all([
+    announcementAuthorPromise,
+    taskParticipantPromise,
+    profileImagePromise,
+  ]);
   if (announcementAuthorError) {
     throw new Error("공지 작성자 정보를 불러오지 못했습니다.");
   }
   const announcementAuthorById = new Map(
     (announcementAuthors ?? []).map((author) => [author.id, author]),
   );
-  const { data: taskParticipantRows, error: taskParticipantError } = tasks.length
-    ? await supabase
-        .from("task_participants")
-        .select("task_id, employee_id")
-        .in("task_id", tasks.map((task) => task.id))
-    : { data: [], error: null };
   if (taskParticipantError && taskParticipantError.code !== "PGRST205") {
     throw new Error("업무 참여자 정보를 불러오지 못했습니다.");
   }
 
   const owners = scopedEmployees;
-  const ownerEntries = await Promise.all(
-    owners.map(async (owner) => [
+  const ownerEntries = owners.map((owner) => [
       owner.id,
       {
         name: owner.name,
@@ -119,13 +132,11 @@ export default async function CalendarPage() {
         positionCode: owner.position,
         department: owner.department,
         departmentLabel: departmentLabel(owner.department),
-        imageUrl: await createProfileImageSignedUrl(
-          supabase,
-          owner.profile_image_url,
-        ),
+        imageUrl: owner.profile_image_url
+          ? (profileImageUrlByValue.get(owner.profile_image_url) ?? null)
+          : null,
       },
-    ] as const),
-  );
+    ] as const);
   const ownerById = new Map(ownerEntries);
   const participantIdsByTask = new Map<string, string[]>();
   (taskParticipantRows ?? []).forEach((participant) => {

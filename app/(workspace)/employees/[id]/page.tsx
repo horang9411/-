@@ -14,8 +14,6 @@ import { canManageTask } from "@/lib/tasks/permissions";
 import { cn, formatPhone } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "직원별 업무" };
-export const dynamic = "force-dynamic";
-
 type TaskRow = {
   id: string;
   title: string;
