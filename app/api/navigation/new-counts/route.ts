@@ -38,13 +38,20 @@ export async function GET(request: Request) {
         employee.department === auth.employee.departmentCode,
     )
     .map((employee) => employee.id);
+  let newTaskQuery = supabase
+    .from("tasks")
+    .select("id", { count: "exact", head: true })
+    .in("owner_id", visibleEmployeeIds);
+  if (!canViewAllDepartments(auth.employee)) {
+    newTaskQuery = newTaskQuery.eq(
+      "department",
+      auth.employee.departmentCode,
+    );
+  }
 
   const calendarQueries = since.calendar
     ? [
-        supabase
-          .from("tasks")
-          .select("id", { count: "exact", head: true })
-          .in("owner_id", visibleEmployeeIds)
+        newTaskQuery
           .gt("created_at", since.calendar)
           .lte("created_at", checkedAt),
         supabase

@@ -16,7 +16,7 @@ import {
   leaveTypeLabel,
 } from "@/lib/leave/constants";
 import { createProfileImageSignedUrlMap } from "@/lib/storage/profile-image";
-import { canViewTaskDetails } from "@/lib/tasks/permissions";
+import { canManageTask, canViewTaskDetails } from "@/lib/tasks/permissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSystemSettings } from "@/lib/settings/system-settings";
 
@@ -47,11 +47,16 @@ export default async function CalendarPage() {
 
   const [settingsResult, taskResult, leaveResult, holidayResult, announcementResult] = await Promise.all([
     settingsPromise,
-    supabase
-      .from("tasks")
-      .select("id, title, description, owner_id, department, start_date, end_date")
-      .in("owner_id", visibleEmployeeIds)
-      .order("start_date", { ascending: true }),
+    (() => {
+      let query = supabase
+        .from("tasks")
+        .select("id, title, description, owner_id, department, start_date, end_date")
+        .in("owner_id", visibleEmployeeIds);
+      if (!canSeeEveryDepartment) {
+        query = query.eq("department", currentEmployee.departmentCode);
+      }
+      return query.order("start_date", { ascending: true });
+    })(),
     supabase
       .from("leave_requests")
       .select(
@@ -159,6 +164,7 @@ export default async function CalendarPage() {
     const canViewDetails = canViewTaskDetails(
       currentEmployee,
       task.owner_id,
+      task.department,
       participantIds.includes(currentEmployee.id),
     );
     const canViewAdminOverview = currentEmployee.role === "admin";
@@ -177,7 +183,7 @@ export default async function CalendarPage() {
       startDate: task.start_date,
       endDate: task.end_date,
       canEdit:
-        currentEmployee.role === "admin" || currentEmployee.id === task.owner_id,
+        canManageTask(currentEmployee, task.owner_id, task.department),
       canViewDetails,
     };
   });

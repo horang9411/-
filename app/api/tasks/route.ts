@@ -9,6 +9,7 @@ import { departmentLabel, positionLabel } from "@/lib/employees/constants";
 import { canViewAllDepartments } from "@/lib/employees/permissions";
 import { createProfileImageSignedUrlMap } from "@/lib/storage/profile-image";
 import { validateTaskAttachments } from "@/lib/tasks/files";
+import { canManageTask } from "@/lib/tasks/permissions";
 import {
   taskAttachmentFiles,
   uploadTaskAttachments,
@@ -32,11 +33,16 @@ export async function GET() {
   }
   const { data: owners } = await ownerQuery;
   const visibleOwnerIds = (owners ?? []).map((owner) => owner.id);
-  const { data: tasks, error } = await supabase
+  let taskQuery = supabase
     .from("tasks")
     .select("id, title, owner_id, department, start_date, end_date")
-    .in("owner_id", visibleOwnerIds)
-    .order("start_date", { ascending: true });
+    .in("owner_id", visibleOwnerIds);
+  if (!canViewAllDepartments(auth.employee)) {
+    taskQuery = taskQuery.eq("department", auth.employee.departmentCode);
+  }
+  const { data: tasks, error } = await taskQuery.order("start_date", {
+    ascending: true,
+  });
 
   if (error) {
     return NextResponse.json(
@@ -95,7 +101,7 @@ export async function GET() {
       departmentLabel: departmentLabel(task.department),
       startDate: task.start_date,
       endDate: task.end_date,
-      canEdit: auth.employee.role === "admin" || auth.employee.id === task.owner_id,
+      canEdit: canManageTask(auth.employee, task.owner_id, task.department),
     })),
   });
 }

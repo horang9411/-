@@ -32,14 +32,14 @@ export async function PATCH(
   const supabase = createAdminClient();
   const { data: task } = await supabase
     .from("tasks")
-    .select("id, title, owner_id, start_date, end_date")
+    .select("id, title, owner_id, department, start_date, end_date")
     .eq("id", id)
     .maybeSingle();
 
   if (!task) {
     return NextResponse.json({ message: "업무를 찾을 수 없습니다." }, { status: 404 });
   }
-  if (!canManageTask(auth.employee, task.owner_id)) {
+  if (!canManageTask(auth.employee, task.owner_id, task.department)) {
     return NextResponse.json(
       { message: "이 업무의 일정을 변경할 권한이 없습니다." },
       { status: 403 },

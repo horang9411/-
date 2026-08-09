@@ -19,7 +19,7 @@ export async function GET(
   const supabase = createAdminClient();
   const { data: task } = await supabase
     .from("tasks")
-    .select("id, owner_id")
+    .select("id, owner_id, department")
     .eq("id", id)
     .maybeSingle();
 
@@ -45,7 +45,12 @@ export async function GET(
   if (
     !owner ||
     !canViewDepartment(auth.employee, owner.department) ||
-    !canViewTaskDetails(auth.employee, task.owner_id, Boolean(participant))
+    !canViewTaskDetails(
+      auth.employee,
+      task.owner_id,
+      task.department,
+      Boolean(participant),
+    )
   ) {
     return NextResponse.json(
       { message: "첨부파일을 조회할 권한이 없습니다." },

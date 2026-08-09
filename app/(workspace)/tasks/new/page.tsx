@@ -67,7 +67,12 @@ export default async function TaskNewPage({
         .eq("task_id", editId),
     ]);
 
-    if (!task || !canManageTask(currentEmployee, task.owner_id)) notFound();
+    if (
+      !task ||
+      !canManageTask(currentEmployee, task.owner_id, task.department)
+    ) {
+      notFound();
+    }
 
     if (!employeeOptions.some((employee) => employee.id === task.owner_id)) {
       const { data: existingOwner } = await supabase

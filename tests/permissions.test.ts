@@ -31,16 +31,44 @@ function employee(overrides: Partial<CurrentEmployee> = {}): CurrentEmployee {
 
 test("일반 직원은 본인 업무만 관리한다", () => {
   const current = employee();
-  assert.equal(canManageTask(current, current.id), true);
-  assert.equal(canManageTask(current, "00000000-0000-4000-8000-000000000002"), false);
+  assert.equal(canManageTask(current, current.id, "web"), true);
+  assert.equal(canManageTask(current, current.id, "logistics"), false);
+  assert.equal(
+    canManageTask(
+      current,
+      "00000000-0000-4000-8000-000000000002",
+      "web",
+    ),
+    false,
+  );
 });
 
-test("과장급 이상과 참여 직원은 타인 업무 상세를 조회한다", () => {
+test("과장급 이상과 참여 직원도 같은 부서 업무만 상세 조회한다", () => {
   const ownerId = "00000000-0000-4000-8000-000000000002";
-  assert.equal(canViewTaskDetails(employee(), ownerId), false);
-  assert.equal(canViewTaskDetails(employee(), ownerId, true), true);
+  assert.equal(canViewTaskDetails(employee(), ownerId, "web"), false);
+  assert.equal(canViewTaskDetails(employee(), ownerId, "web", true), true);
   assert.equal(
-    canViewTaskDetails(employee({ positionCode: "manager", position: "과장" }), ownerId),
+    canViewTaskDetails(
+      employee({ positionCode: "manager", position: "과장" }),
+      ownerId,
+      "web",
+    ),
+    true,
+  );
+  assert.equal(
+    canViewTaskDetails(
+      employee({ positionCode: "manager", position: "과장" }),
+      ownerId,
+      "logistics",
+    ),
+    false,
+  );
+  assert.equal(
+    canViewTaskDetails(
+      employee({ positionCode: "team_lead", position: "팀장" }),
+      ownerId,
+      "logistics",
+    ),
     true,
   );
 });
@@ -81,8 +109,23 @@ test("최종 휴가 승인은 대표 직급의 관리자만 한다", () => {
   );
 });
 
-test("관리자와 팀장은 모든 부서를, 일반 직원은 자기 부서만 본다", () => {
+test("관리자와 팀장만 모든 부서를, 팀장 미만은 자기 부서만 본다", () => {
+  assert.equal(canViewDepartment(employee(), "web"), true);
   assert.equal(canViewDepartment(employee(), "logistics"), false);
+  assert.equal(
+    canViewDepartment(
+      employee({ positionCode: "general_manager", position: "부장" }),
+      "logistics",
+    ),
+    false,
+  );
+  assert.equal(
+    canViewDepartment(
+      employee({ positionCode: "manager", position: "과장" }),
+      "logistics",
+    ),
+    false,
+  );
   assert.equal(canViewDepartment(employee({ positionCode: "team_lead" }), "logistics"), true);
   assert.equal(canViewDepartment(employee({ role: "admin" }), "logistics"), true);
 });

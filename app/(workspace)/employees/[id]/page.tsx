@@ -7,7 +7,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
-import { canViewEmployeeWorkDetails } from "@/lib/employees/permissions";
+import {
+  canViewAllDepartments,
+  canViewEmployeeWorkDetails,
+} from "@/lib/employees/permissions";
 import { createProfileImageSignedUrl } from "@/lib/storage/profile-image";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canManageTask } from "@/lib/tasks/permissions";
@@ -45,11 +48,16 @@ export default async function EmployeeDetailPage({
     redirect("/employees?denied=1");
   }
 
-  const { data: taskRows } = await supabase
+  let taskQuery = supabase
     .from("tasks")
     .select("id, title, description, department, start_date, end_date, related_link, updated_at")
-    .eq("owner_id", id)
-    .order("start_date", { ascending: true });
+    .eq("owner_id", id);
+  if (!canViewAllDepartments(currentEmployee)) {
+    taskQuery = taskQuery.eq("department", currentEmployee.departmentCode);
+  }
+  const { data: taskRows } = await taskQuery.order("start_date", {
+    ascending: true,
+  });
 
   const imageUrl = await createProfileImageSignedUrl(supabase, employee.profile_image_url);
   const tasks = (taskRows ?? []) as TaskRow[];
@@ -64,7 +72,11 @@ export default async function EmployeeDetailPage({
     .filter((task) => task.end_date < today)
     .sort((a, b) => b.end_date.localeCompare(a.end_date))
     .slice(0, 6);
-  const canEdit = canManageTask(currentEmployee, employee.id);
+  const canEdit = canManageTask(
+    currentEmployee,
+    employee.id,
+    employee.department,
+  );
 
   return (
     <section className="p-4 sm:p-6 lg:p-8">

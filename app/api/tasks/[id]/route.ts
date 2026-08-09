@@ -57,7 +57,11 @@ export async function GET(
     .select("id, name, position, department, profile_image_url")
     .eq("id", task.owner_id)
     .maybeSingle();
-  if (!owner || !canViewDepartment(auth.employee, owner.department)) {
+  if (
+    !owner ||
+    !canViewDepartment(auth.employee, owner.department) ||
+    !canViewDepartment(auth.employee, task.department)
+  ) {
     return NextResponse.json(
       { message: "다른 부서의 업무 일정은 조회할 수 없습니다." },
       { status: 403 },
@@ -73,9 +77,10 @@ export async function GET(
   const canViewDetail = canViewTaskDetails(
     auth.employee,
     task.owner_id,
+    task.department,
     isParticipant,
   );
-  const canEdit = canManageTask(auth.employee, task.owner_id);
+  const canEdit = canManageTask(auth.employee, task.owner_id, task.department);
   const { data: participantEmployees } = participantIds.length
     ? await supabase
         .from("employees")
@@ -183,7 +188,7 @@ export async function PATCH(
     );
   }
 
-  if (!canManageTask(auth.employee, before.owner_id)) {
+  if (!canManageTask(auth.employee, before.owner_id, before.department)) {
     return NextResponse.json(
       { message: "이 업무를 수정할 권한이 없습니다." },
       { status: 403 },
@@ -404,7 +409,7 @@ export async function DELETE(
   const supabase = createAdminClient();
   const { data: task } = await supabase
     .from("tasks")
-    .select("id, title, owner_id")
+    .select("id, title, owner_id, department")
     .eq("id", id)
     .maybeSingle();
 
@@ -415,7 +420,7 @@ export async function DELETE(
     );
   }
 
-  if (!canManageTask(auth.employee, task.owner_id)) {
+  if (!canManageTask(auth.employee, task.owner_id, task.department)) {
     return NextResponse.json(
       { message: "이 업무를 삭제할 권한이 없습니다." },
       { status: 403 },
