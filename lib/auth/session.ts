@@ -61,7 +61,9 @@ const getCurrentSessionCached = cache(async (): Promise<CachedSessionResult> => 
 
     const { data: session } = await supabase
       .from("sessions")
-      .select("id, employee_id, expires_at")
+      .select(
+        "id, employee_id, expires_at, employee:employees!sessions_employee_id_fkey(id, name, position, department, profile_image_url, role, account_status)",
+      )
       .eq("session_token_hash", tokenHash)
       .maybeSingle();
 
@@ -72,11 +74,9 @@ const getCurrentSessionCached = cache(async (): Promise<CachedSessionResult> => 
       return { employee: null, reason: "expired" };
     }
 
-    const { data: employee } = await supabase
-      .from("employees")
-      .select("id, name, position, department, profile_image_url, role, account_status")
-      .eq("id", session.employee_id)
-      .maybeSingle();
+    const employee = Array.isArray(session.employee)
+      ? session.employee[0]
+      : session.employee;
 
     if (!employee) {
       await supabase.from("sessions").delete().eq("id", session.id);
