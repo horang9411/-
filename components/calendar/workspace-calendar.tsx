@@ -121,22 +121,29 @@ function leaveEvents(leaves: LeaveCalendarItem[]): EventInput[] {
 }
 
 function holidayEvents(holidays: CompanyHolidayCalendarItem[], companyName: string): EventInput[] {
-  return holidays.map((holiday) => ({
-    id: `holiday-${holiday.id}`,
-    title: holiday.title,
-    start: holiday.holidayDate,
-    editable: false,
-    extendedProps: {
-      kind: "holiday",
-      ownerName: companyName,
-      department: "회사 공통",
-      position: "휴무일",
-      status: "holiday",
-      statusLabel: "회사 휴무일",
-      description: holiday.description ?? "회사 지정 휴무일입니다.",
-      detail: "전사 공통 일정",
-    } satisfies ScheduleMeta,
-  }));
+  return holidays.map((holiday) => {
+    const isPublicHoliday = holiday.holidayType === "public";
+    return {
+      id: `holiday-${holiday.id}`,
+      title: holiday.title,
+      start: holiday.holidayDate,
+      editable: false,
+      extendedProps: {
+        kind: "holiday",
+        ownerName: isPublicHoliday ? "대한민국" : companyName,
+        department: isPublicHoliday ? "대한민국 공통" : "회사 공통",
+        position: isPublicHoliday ? "공휴일" : "휴무일",
+        status: "holiday",
+        statusLabel: isPublicHoliday ? "대한민국 공휴일" : "회사 휴무일",
+        description:
+          holiday.description ??
+          (isPublicHoliday
+            ? "대한민국 공식 공휴일입니다."
+            : "회사 지정 휴무일입니다."),
+        detail: isPublicHoliday ? "대한민국 공식 휴일" : "전사 공통 일정",
+      } satisfies ScheduleMeta,
+    };
+  });
 }
 
 export function WorkspaceCalendar({
@@ -167,9 +174,18 @@ export function WorkspaceCalendar({
   } | null>(null);
   const events = useMemo(
     () => mode === "task"
-      ? taskEvents(tasks)
+      ? [...taskEvents(tasks), ...holidayEvents(holidays, companyName)]
       : [...leaveEvents(leaves), ...holidayEvents(holidays, companyName)],
     [companyName, holidays, leaves, mode, tasks],
+  );
+  const publicHolidayDates = useMemo(
+    () =>
+      new Set(
+        holidays
+          .filter((holiday) => holiday.holidayType === "public")
+          .map((holiday) => holiday.holidayDate),
+      ),
+    [holidays],
   );
 
   useEffect(() => {
@@ -327,6 +343,11 @@ export function WorkspaceCalendar({
                 eventResize={handleEventResize}
                 eventContent={renderEventContent}
                 eventClick={(arg) => setSelected(arg.event)}
+                dayCellClassNames={(arg) =>
+                  publicHolidayDates.has(localDateValue(arg.date))
+                    ? ["fc-day-public-holiday"]
+                    : []
+                }
                 headerToolbar={{
                   left: "prev,next today",
                   center: "title",
@@ -592,13 +613,14 @@ function ProfileStack({
 }
 
 function StatusLegend({ mode }: { mode: CalendarMode }) {
-  if (mode === "task") return null;
-  const items = [
-          ["pending", "승인 대기"],
-          ["approved", "승인"],
-          ["rejected", "반려"],
-          ["cancelled", "취소"],
-          ["holiday", "회사 휴무일"],
+  const items = mode === "task"
+    ? [["holiday", "공휴일 · 회사 휴무일"]]
+    : [
+        ["pending", "승인 대기"],
+        ["approved", "승인"],
+        ["rejected", "반려"],
+        ["cancelled", "취소"],
+        ["holiday", "공휴일 · 회사 휴무일"],
       ];
 
   return (

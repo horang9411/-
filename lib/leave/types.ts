@@ -23,4 +23,5 @@ export type CompanyHolidayCalendarItem = {
   title: string;
   holidayDate: string;
   description: string | null;
+  holidayType?: "company" | "public";
 };

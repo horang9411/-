@@ -186,6 +186,11 @@ a {
   color: #3976c5;
 }
 
+.pc-calendar .fc .fc-day-public-holiday:not(.fc-day-today) .fc-daygrid-day-number,
+.pc-calendar .fc .fc-day-public-holiday .fc-col-header-cell-cushion {
+  color: #d94f4f;
+}
+
 .pc-calendar .fc .fc-day-today .fc-daygrid-day-number {
   align-items: center;
   background: #305f46;

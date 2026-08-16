@@ -10,6 +10,7 @@ import { requireCurrentEmployee } from "@/lib/auth/session";
 import { departmentLabel, positionLabel } from "@/lib/employees/constants";
 import { getWorkspaceEmployees } from "@/lib/employees/data";
 import { canViewAllDepartments } from "@/lib/employees/permissions";
+import { getKoreanPublicHolidays } from "@/lib/holidays/korean-public-holidays";
 import {
   leaveDayTypeLabel,
   leaveProgressLabel,
@@ -32,6 +33,13 @@ export default async function CalendarPage() {
     .from("company_holidays")
     .select("id, title, holiday_date, description")
     .order("holiday_date", { ascending: true });
+  const publicHolidayPromise = getKoreanPublicHolidays().catch((error) => {
+    console.error(
+      "대한민국 공휴일을 불러오지 못했습니다.",
+      error instanceof Error ? error.message : "알 수 없는 오류",
+    );
+    return [];
+  });
   const announcementPromise = supabase
     .from("announcements")
     .select("id, title, content, created_by, meeting_id, created_at")
@@ -45,7 +53,14 @@ export default async function CalendarPage() {
   );
   const visibleEmployeeIds = scopedEmployees.map((employee) => employee.id);
 
-  const [settingsResult, taskResult, leaveResult, holidayResult, announcementResult] = await Promise.all([
+  const [
+    settingsResult,
+    taskResult,
+    leaveResult,
+    holidayResult,
+    publicHolidays,
+    announcementResult,
+  ] = await Promise.all([
     settingsPromise,
     (() => {
       let query = supabase
@@ -65,6 +80,7 @@ export default async function CalendarPage() {
       .in("employee_id", visibleEmployeeIds)
       .order("start_date", { ascending: true }),
     holidayPromise,
+    publicHolidayPromise,
     announcementPromise,
   ]);
   const { settings } = settingsResult;
@@ -230,12 +246,22 @@ export default async function CalendarPage() {
       <WorkspaceCalendar
         tasks={calendarTasks}
         leaves={calendarLeaves}
-        holidays={(holidayResult.data ?? []).map((holiday) => ({
-          id: holiday.id,
-          title: holiday.title,
-          holidayDate: holiday.holiday_date,
-          description: holiday.description,
-        }))}
+        holidays={[
+          ...publicHolidays.map((holiday) => ({
+            id: `kr-${holiday.date}`,
+            title: holiday.name,
+            holidayDate: holiday.date,
+            description: "공공데이터포털의 대한민국 공식 공휴일 정보입니다.",
+            holidayType: "public" as const,
+          })),
+          ...(holidayResult.data ?? []).map((holiday) => ({
+            id: holiday.id,
+            title: holiday.title,
+            holidayDate: holiday.holiday_date,
+            description: holiday.description,
+            holidayType: "company" as const,
+          })),
+        ]}
         defaultMode={settings.defaultCalendarTab}
         weekStartsOn={settings.weekStartsOn}
         companyName={settings.companyName}
