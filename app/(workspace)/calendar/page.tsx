@@ -77,6 +77,7 @@ export default async function CalendarPage() {
       .select(
         "id, employee_id, leave_type, start_date, end_date, day_type, status, team_lead_status, representative_status",
       )
+      .neq("status", "cancelled")
       .in("employee_id", visibleEmployeeIds)
       .order("start_date", { ascending: true }),
     holidayPromise,

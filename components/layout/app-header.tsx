@@ -1,12 +1,13 @@
 "use client";
 
-import { Bell, HelpCircle, Loader2, LogOut } from "lucide-react";
+import { HelpCircle, Loader2, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { LeaveNotificationCenter } from "@/components/layout/leave-notification-center";
 import type { WorkspaceUser } from "@/components/layout/workspace-user";
 
 const routeTitles: Record<string, { title: string; description: string }> = {
@@ -55,10 +56,7 @@ export function AppHeader({ user }: { user: WorkspaceUser }) {
         <Button variant="ghost" size="icon" aria-label="도움말" className="hidden sm:inline-flex">
           <HelpCircle className="size-[19px]" />
         </Button>
-        <Button variant="ghost" size="icon" aria-label="알림" className="relative">
-          <Bell className="size-[19px]" />
-          <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-[#e7ae40] ring-2 ring-white" />
-        </Button>
+        <LeaveNotificationCenter user={user} />
 
         <Link
           href="/my-profile"

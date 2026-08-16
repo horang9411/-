@@ -80,6 +80,7 @@ export function LeaveRequestForm({
   const [fileError, setFileError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const {
@@ -151,7 +152,7 @@ export function LeaveRequestForm({
   });
 
   async function cancelRequest(id: string) {
-    if (!window.confirm("이 휴가 신청을 취소할까요?")) return;
+    if (!window.confirm("취소하면 캘린더에서 즉시 제외됩니다. 이 휴가 신청을 취소할까요?")) return;
     setCancellingId(id);
     setServerError(null);
     try {
@@ -164,6 +165,23 @@ export function LeaveRequestForm({
       setServerError(error instanceof Error ? error.message : "취소 중 오류가 발생했습니다.");
     } finally {
       setCancellingId(null);
+    }
+  }
+
+  async function deleteRequest(id: string) {
+    if (!window.confirm("휴가 신청과 첨부파일이 영구 삭제됩니다. 정말 삭제할까요?")) return;
+    setDeletingId(id);
+    setServerError(null);
+    try {
+      const response = await fetch(`/api/leave/${id}`, { method: "DELETE" });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(result.message ?? "휴가 신청을 삭제하지 못했습니다.");
+      window.dispatchEvent(new Event("leave-requests-changed"));
+      router.refresh();
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : "삭제 중 오류가 발생했습니다.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -254,7 +272,14 @@ export function LeaveRequestForm({
           </form>
         </div>
 
-        <MyLeaveRequests requests={requests} isAdmin={isAdmin} cancellingId={cancellingId} onCancel={cancelRequest} />
+        <MyLeaveRequests
+          requests={requests}
+          isAdmin={isAdmin}
+          cancellingId={cancellingId}
+          deletingId={deletingId}
+          onCancel={cancelRequest}
+          onDelete={deleteRequest}
+        />
       </div>
     </section>
   );
@@ -279,7 +304,21 @@ function ApprovalStep({ icon: Icon, number, label }: { icon: React.ComponentType
   return <div className="flex min-h-12 w-full shrink-0 items-center gap-3 rounded-[11px] bg-[#f6f9f7] px-3 sm:min-h-0 sm:w-auto sm:gap-2 sm:bg-transparent sm:px-0"><span className="flex size-8 items-center justify-center rounded-full bg-[#e6f5eb] text-[#3b7453]"><Icon className="size-4" /></span><span><span className="block text-[9px] font-bold text-[#9aa29d]">{number}단계</span><span className="block text-[11px] font-extrabold text-[#556159] sm:text-[12px]">{label}</span></span></div>;
 }
 
-function MyLeaveRequests({ requests, isAdmin, cancellingId, onCancel }: { requests: RequestSummary[]; isAdmin: boolean; cancellingId: string | null; onCancel: (id: string) => void }) {
+function MyLeaveRequests({
+  requests,
+  isAdmin,
+  cancellingId,
+  deletingId,
+  onCancel,
+  onDelete,
+}: {
+  requests: RequestSummary[];
+  isAdmin: boolean;
+  cancellingId: string | null;
+  deletingId: string | null;
+  onCancel: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   return (
     <div className="mt-7">
       <h2 className="text-[18px] font-extrabold tracking-[-0.03em] text-[#303c35]">내 휴가 신청 내역</h2>
@@ -288,7 +327,9 @@ function MyLeaveRequests({ requests, isAdmin, cancellingId, onCancel }: { reques
       ) : (
         <div className="mt-3 space-y-3">
           {requests.map((request) => {
-            const canChange = request.status === "pending" || (isAdmin && request.status !== "cancelled");
+            const canEdit = request.status === "pending" || (isAdmin && request.status !== "cancelled");
+            const canCancel = request.status !== "cancelled";
+            const isBusy = cancellingId === request.id || deletingId === request.id;
             return (
               <article key={request.id} className="rounded-[16px] border border-[#e0e5e2] bg-white p-4 sm:p-5">
                 <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -300,14 +341,21 @@ function MyLeaveRequests({ requests, isAdmin, cancellingId, onCancel }: { reques
                     <p className="mt-2 flex items-center gap-1.5 text-[12px] text-[#69746d]"><CalendarDays className="size-3.5" /> {formatDateRange(request.startDate, request.endDate)}</p>
                     <p className="mt-1 flex items-center gap-1.5 text-[10px] text-[#9aa29e]"><Clock3 className="size-3" /> 신청 {formatDateTime(request.createdAt)}</p>
                   </div>
-                  {canChange && (
-                    <div className="flex gap-2">
-                      <Button asChild variant="secondary" size="sm"><Link href={`/leave/new?edit=${request.id}`}><Pencil className="size-3.5" /> 수정</Link></Button>
-                      <Button variant="secondary" size="sm" onClick={() => onCancel(request.id)} disabled={cancellingId === request.id} className="text-[#98514c]">
-                        {cancellingId === request.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />} 취소
+                  <div className="flex flex-wrap gap-2">
+                    {canEdit && (
+                      <Button asChild variant="secondary" size="sm">
+                        <Link href={`/leave/new?edit=${request.id}`}><Pencil className="size-3.5" /> 수정</Link>
                       </Button>
-                    </div>
-                  )}
+                    )}
+                    {canCancel && (
+                      <Button variant="secondary" size="sm" onClick={() => onCancel(request.id)} disabled={isBusy} className="text-[#8a6350]">
+                        {cancellingId === request.id ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />} 취소
+                      </Button>
+                    )}
+                    <Button variant="secondary" size="sm" onClick={() => onDelete(request.id)} disabled={isBusy} className="border-[#efcfcc] text-[#a14f49] hover:bg-[#fff4f3]">
+                      {deletingId === request.id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />} 삭제
+                    </Button>
+                  </div>
                 </div>
                 <ApprovalProgress teamLeadStatus={request.teamLeadStatus} teamLeadApprovalSkipped={request.teamLeadApprovalSkipped} representativeStatus={request.representativeStatus} status={request.status} />
                 {request.rejectionReason && <p className="mt-3 rounded-[10px] bg-[#fff1f0] px-3 py-2 text-[11px] text-[#984c47]">반려 사유: {request.rejectionReason}</p>}

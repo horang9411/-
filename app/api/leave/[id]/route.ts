@@ -13,7 +13,10 @@ import {
   leaveTypeLabel,
 } from "@/lib/leave/constants";
 import { validateLeaveAttachment } from "@/lib/leave/files";
-import { canViewLeaveDetails } from "@/lib/leave/permissions";
+import {
+  canDeleteLeave,
+  canViewLeaveDetails,
+} from "@/lib/leave/permissions";
 import {
   leaveAttachmentFromFormData,
   LEAVE_ATTACHMENT_BUCKET,
@@ -298,6 +301,90 @@ export async function PATCH(
       edited_by_admin: auth.employee.role === "admin",
       attachment_replaced: Boolean(attachment),
       attachment_removed: removeAttachment && !attachment,
+    },
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  if (!hasValidMutationOrigin(request)) return invalidOriginResponse();
+
+  const auth = await requireApiEmployee();
+  if (auth.response) return auth.response;
+
+  const { id } = await params;
+  const supabase = createAdminClient();
+  const { data: leave } = await supabase
+    .from("leave_requests")
+    .select(
+      "id, employee_id, leave_type, start_date, end_date, day_type, status, attachment_url",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (!leave) {
+    return NextResponse.json(
+      { message: "휴가 신청을 찾을 수 없습니다." },
+      { status: 404 },
+    );
+  }
+  if (!canDeleteLeave(auth.employee, leave.employee_id)) {
+    return NextResponse.json(
+      { message: "이 휴가 신청을 삭제할 권한이 없습니다." },
+      { status: 403 },
+    );
+  }
+
+  const { data: applicant } = await supabase
+    .from("employees")
+    .select("id, name, department, position")
+    .eq("id", leave.employee_id)
+    .maybeSingle();
+  if (!applicant) {
+    return NextResponse.json(
+      { message: "신청 직원 정보를 찾을 수 없습니다." },
+      { status: 404 },
+    );
+  }
+
+  const { error } = await supabase
+    .from("leave_requests")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    return NextResponse.json(
+      { message: "휴가 신청을 삭제하지 못했습니다." },
+      { status: 500 },
+    );
+  }
+
+  if (leave.attachment_url) {
+    await supabase.storage
+      .from(LEAVE_ATTACHMENT_BUCKET)
+      .remove([leave.attachment_url]);
+  }
+
+  await supabase.from("activity_logs").insert({
+    employee_id: auth.employee.id,
+    action_type: "leave.delete",
+    target_type: "leave_request",
+    target_id: id,
+    changed_data: {
+      employee_id: applicant.id,
+      employee_name: applicant.name,
+      employee_department: applicant.department,
+      employee_position: applicant.position,
+      leave_type: leave.leave_type,
+      start_date: leave.start_date,
+      end_date: leave.end_date,
+      day_type: leave.day_type,
+      previous_status: leave.status,
+      team_lead_approval_skipped: applicant.position === "team_lead",
+      deleted_by_admin: auth.employee.role === "admin",
+      attachment_deleted: Boolean(leave.attachment_url),
     },
   });
 

@@ -9,6 +9,9 @@ import {
 import { canViewDepartment } from "@/lib/employees/permissions";
 import { canDeleteMeeting } from "@/lib/meetings/permissions";
 import {
+  canCancelLeave,
+  canDeleteLeave,
+  canReceiveLeaveNotifications,
   canReviewAsRepresentative,
   canReviewAsTeamLead,
 } from "@/lib/leave/permissions";
@@ -105,6 +108,67 @@ test("최종 휴가 승인은 대표 직급의 관리자만 한다", () => {
       employee({ role: "admin", positionCode: "team_lead", position: "팀장" }),
       applicantId,
     ),
+    false,
+  );
+});
+
+test("직원은 본인 휴가를 상태와 관계없이 취소·삭제할 수 있다", () => {
+  const current = employee();
+  assert.equal(
+    canCancelLeave(current, { employeeId: current.id, status: "approved" }),
+    true,
+  );
+  assert.equal(canDeleteLeave(current, current.id), true);
+  assert.equal(
+    canCancelLeave(current, {
+      employeeId: "00000000-0000-4000-8000-000000000002",
+      status: "pending",
+    }),
+    false,
+  );
+  assert.equal(
+    canDeleteLeave(
+      current,
+      "00000000-0000-4000-8000-000000000002",
+    ),
+    false,
+  );
+  assert.equal(
+    canCancelLeave(current, { employeeId: current.id, status: "cancelled" }),
+    false,
+  );
+});
+
+test("관리자는 다른 직원 휴가를 취소·삭제할 수 있다", () => {
+  const current = employee({ role: "admin" });
+  const applicantId = "00000000-0000-4000-8000-000000000002";
+  assert.equal(
+    canCancelLeave(current, { employeeId: applicantId, status: "approved" }),
+    true,
+  );
+  assert.equal(canDeleteLeave(current, applicantId), true);
+});
+
+test("휴가 알림은 팀장과 대표자에게만 표시한다", () => {
+  assert.equal(canReceiveLeaveNotifications(employee()), false);
+  assert.equal(
+    canReceiveLeaveNotifications(
+      employee({ positionCode: "team_lead", position: "팀장" }),
+    ),
+    true,
+  );
+  assert.equal(
+    canReceiveLeaveNotifications(
+      employee({
+        role: "admin",
+        positionCode: "representative",
+        position: "대표",
+      }),
+    ),
+    true,
+  );
+  assert.equal(
+    canReceiveLeaveNotifications(employee({ role: "admin" })),
     false,
   );
 });
