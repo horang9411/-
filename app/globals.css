@@ -190,13 +190,15 @@ a {
   align-items: center;
   background: #305f46;
   border-radius: 999px;
+  box-sizing: border-box;
   color: white;
   display: inline-flex;
-  height: 28px;
+  height: 32px;
   justify-content: center;
   margin: 4px;
-  padding: 0;
-  width: 28px;
+  min-width: 42px;
+  padding: 0 8px;
+  white-space: nowrap;
 }
 
 .pc-calendar .fc .fc-daygrid-event {
