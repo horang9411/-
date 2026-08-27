@@ -1,13 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Camera, CheckCircle2, IdCard, Loader2, Save, Trash2, UserRound } from "lucide-react";
+import { AlertCircle, Camera, CheckCircle2, ChevronDown, IdCard, Loader2, Save, ShieldQuestion, Trash2, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { securityQuestionOptions } from "@/lib/auth/security-questions";
 import { PROFILE_IMAGE_ACCEPT, validateProfileImage } from "@/lib/employees/profile-image-file";
 import { cn, formatPhone } from "@/lib/utils";
 import { profileFormSchema, type ProfileFormInput } from "@/schemas/profile";
@@ -22,6 +23,8 @@ type ProfileEmployee = {
   imageUrl: string | null;
   hasProfileImage: boolean;
   role: string;
+  securityQuestion: string | null;
+  hasSecurityAnswer: boolean;
   createdAt: string;
   lastLoginAt: string | null;
 };
@@ -38,7 +41,12 @@ export function MyProfileForm({ employee }: { employee: ProfileEmployee }) {
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<ProfileFormInput>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: { name: employee.name, phone: formatPhone(employee.phone) },
+    defaultValues: {
+      name: employee.name,
+      phone: formatPhone(employee.phone),
+      securityQuestion: (employee.securityQuestion ?? "high_school") as ProfileFormInput["securityQuestion"],
+      securityAnswer: "",
+    },
   });
 
   useEffect(() => () => {
@@ -77,6 +85,8 @@ export function MyProfileForm({ employee }: { employee: ProfileEmployee }) {
     formData.set("name", input.name);
     formData.set("phone", input.phone);
     formData.set("removeImage", String(removeImage));
+    formData.set("securityQuestion", input.securityQuestion);
+    formData.set("securityAnswer", input.securityAnswer);
     if (selectedImage) formData.set("profileImage", selectedImage);
 
     try {
@@ -151,6 +161,30 @@ export function MyProfileForm({ employee }: { employee: ProfileEmployee }) {
                 <Field label="연락처" error={errors.phone?.message}>
                   <input {...register("phone")} inputMode="numeric" placeholder="010-1234-5678" className={inputClass} onChange={(event) => setValue("phone", formatPhone(event.target.value), { shouldValidate: true, shouldDirty: true })} />
                 </Field>
+              </div>
+            </ProfileSection>
+
+            <ProfileSection title="비밀번호 찾기 보안 질문" icon={<ShieldQuestion className="size-4.5" />}>
+              <div className="rounded-[13px] border border-[#e0e7e2] bg-[#f8faf8] p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="text-[11px] leading-5 text-[#78837c]">비밀번호를 잊었을 때 본인 확인에 사용합니다. 답변은 해시로 저장되어 누구도 원문을 볼 수 없습니다.</p>
+                  <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold", employee.hasSecurityAnswer ? "bg-[#e4f4e9] text-[#397050]" : "bg-[#fff0c6] text-[#80661c]")}>
+                    {employee.hasSecurityAnswer ? "등록 완료" : "등록 필요"}
+                  </span>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="보안 질문" error={errors.securityQuestion?.message}>
+                    <span className="relative block">
+                      <select {...register("securityQuestion")} className={`${inputClass} appearance-none pr-10`}>
+                        {securityQuestionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-[#89938d]" />
+                    </span>
+                  </Field>
+                  <Field label={employee.hasSecurityAnswer ? "새 답변 (변경할 때만 입력)" : "답변"} error={errors.securityAnswer?.message}>
+                    <input {...register("securityAnswer")} type="password" autoComplete="off" placeholder={employee.hasSecurityAnswer ? "기존 답변을 유지하려면 비워두세요" : "답변을 입력해 주세요"} className={inputClass} />
+                  </Field>
+                </div>
               </div>
             </ProfileSection>
 

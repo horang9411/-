@@ -131,6 +131,12 @@ export function LoginForm({
         />
       </Field>
 
+      <div className="-mt-2 text-right">
+        <Link href="/account-recovery" className="text-[12px] font-bold text-[#4f765d] transition hover:text-[#315f47] hover:underline">
+          아이디 · 비밀번호 찾기
+        </Link>
+      </div>
+
       <Button type="submit" className="h-12 w-full rounded-[12px] text-[14px]" disabled={isSubmitting}>
         {isSubmitting ? (
           <>

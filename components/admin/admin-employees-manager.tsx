@@ -33,6 +33,7 @@ import {
   roleLabel,
   roleOptions,
 } from "@/lib/employees/constants";
+import { securityQuestionOptions } from "@/lib/auth/security-questions";
 import { cn, formatPhone } from "@/lib/utils";
 import {
   adminCreateEmployeeSchema,
@@ -440,7 +441,7 @@ function CreateEmployeeDialog({ onClose, onSaved }: { onClose: () => void; onSav
   const [serverError, setServerError] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<AdminCreateEmployeeInput>({
     resolver: zodResolver(adminCreateEmployeeSchema),
-    defaultValues: { loginId: "", password: "", passwordConfirm: "", name: "", position: "staff", department: "web", phone: "", role: "employee" },
+    defaultValues: { loginId: "", password: "", passwordConfirm: "", name: "", position: "staff", department: "web", phone: "", role: "employee", securityQuestion: "high_school", securityAnswer: "" },
   });
   const phoneField = register("phone");
 
@@ -465,6 +466,8 @@ function CreateEmployeeDialog({ onClose, onSaved }: { onClose: () => void; onSav
           <FormField label="부서" error={errors.department?.message}><select {...register("department")} className={inputClass}>{departmentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></FormField>
           <FormField label="연락처" error={errors.phone?.message}><input {...phoneField} onChange={(event) => { event.target.value = formatPhone(event.target.value); phoneField.onChange(event); }} className={inputClass} placeholder="010-1234-5678" /></FormField>
           <FormField label="계정 권한" error={errors.role?.message}><select {...register("role")} className={inputClass}>{roleOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></FormField>
+          <FormField label="보안 질문" error={errors.securityQuestion?.message}><select {...register("securityQuestion")} className={inputClass}>{securityQuestionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></FormField>
+          <FormField label="보안 질문 답변" error={errors.securityAnswer?.message}><input {...register("securityAnswer")} type="password" autoComplete="off" className={inputClass} placeholder="비밀번호 찾기에 사용할 답변" /></FormField>
         </div>
         <DialogActions onClose={onClose} submitting={isSubmitting} submitLabel="직원 계정 생성" />
       </form>

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { departmentValues } from "@/schemas/auth";
+import { securityQuestionValues } from "@/lib/auth/security-questions";
+import { departmentValues, securityAnswerSchema } from "@/schemas/auth";
 
 const adminPositionValues = [
   "staff",
@@ -35,6 +36,10 @@ export const adminCreateEmployeeSchema = employeeDetailsSchema
       .regex(/[A-Za-z]/, "비밀번호에 영문을 포함해 주세요.")
       .regex(/[0-9]/, "비밀번호에 숫자를 포함해 주세요."),
     passwordConfirm: z.string().min(1, "비밀번호를 다시 입력해 주세요."),
+    securityQuestion: z.enum(securityQuestionValues, {
+      message: "보안 질문을 선택해 주세요.",
+    }),
+    securityAnswer: securityAnswerSchema,
   })
   .refine((data) => data.password === data.passwordConfirm, {
     path: ["passwordConfirm"],

@@ -7,6 +7,7 @@ import {
   requireApiAdmin,
 } from "@/lib/auth/admin";
 import { hashPassword } from "@/lib/auth/password";
+import { hashSecurityAnswer } from "@/lib/auth/recovery";
 import { getServerEnv } from "@/lib/env";
 import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -44,10 +45,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const passwordHash = await hashPassword(
-    parsed.data.password,
-    env.PASSWORD_PEPPER,
-  );
+  const [passwordHash, securityAnswerHash] = await Promise.all([
+    hashPassword(parsed.data.password, env.PASSWORD_PEPPER),
+    hashSecurityAnswer(parsed.data.securityAnswer, env.PASSWORD_PEPPER),
+  ]);
   const { data: employee, error } = await supabase
     .from("employees")
     .insert({
@@ -59,6 +60,8 @@ export async function POST(request: Request) {
       phone: parsed.data.phone,
       role: parsed.data.role,
       account_status: "active",
+      security_question: parsed.data.securityQuestion,
+      security_answer_hash: securityAnswerHash,
     })
     .select("id")
     .single();
@@ -87,6 +90,8 @@ export async function POST(request: Request) {
       department: parsed.data.department,
       role: parsed.data.role,
       account_status: "active",
+      security_question: parsed.data.securityQuestion,
+      security_answer_registered: true,
     },
   });
   revalidateTag(EMPLOYEES_CACHE_TAG, { expire: 0 });

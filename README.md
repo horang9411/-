@@ -37,6 +37,7 @@ supabase/DEPLOY_BEFORE_VERCEL.sql
 - 더 이상 사용하지 않는 업무 상태 컬럼·타입 제거
 - 오전·오후 반반차 enum 추가
 - Vercel Function 요청 한도에 맞춰 Storage 업로드를 4MB로 제한
+- 아이디 찾기와 보안 질문 기반 비밀번호 재설정 컬럼 추가
 
 SQL 적용 후 `.env.example`을 복사한 `.env.local`에 프로젝트 URL, publishable key, service role key와 pepper를 설정합니다. service role key와 pepper는 서버 전용이며 브라우저 코드나 저장소에 넣으면 안 됩니다.
 
@@ -54,6 +55,7 @@ npm run admin:create
 
 - 세션 원문은 HTTP-only, Secure(운영), SameSite=Lax 쿠키에만 저장하며 DB에는 해시만 저장합니다.
 - 로그인 실패 횟수와 시간 구간별 요청을 제한하고 사용 중지 계정의 기존 세션도 즉시 폐기합니다.
+- 비밀번호 재설정 답변은 bcrypt로 해시하며, 10분짜리 HTTP-only 인증 쿠키와 요청 횟수 제한을 적용합니다.
 - 데이터 변경 API는 세션, 역할·직급·부서 권한, 요청 Origin, Zod 입력을 서버에서 검사합니다.
 - 프로필 이미지는 확장자·MIME·파일 시그니처를 검사합니다.
 - Storage는 비공개이며 권한 확인 후 짧은 만료 시간의 서명 URL만 제공합니다.

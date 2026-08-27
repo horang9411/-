@@ -7,6 +7,7 @@ import {
   invalidOriginResponse,
 } from "@/lib/auth/api";
 import { hashPassword } from "@/lib/auth/password";
+import { hashSecurityAnswer } from "@/lib/auth/recovery";
 import {
   getProfileImageExtension,
   hasValidProfileImageSignature,
@@ -38,6 +39,8 @@ export async function POST(request: Request) {
     position: formData.get("position"),
     department: formData.get("department"),
     phone: formData.get("phone"),
+    securityQuestion: formData.get("securityQuestion"),
+    securityAnswer: formData.get("securityAnswer"),
   });
 
   if (!parsed.success) {
@@ -117,10 +120,10 @@ export async function POST(request: Request) {
     }
   }
 
-  const passwordHash = await hashPassword(
-    parsed.data.password,
-    env.PASSWORD_PEPPER,
-  );
+  const [passwordHash, securityAnswerHash] = await Promise.all([
+    hashPassword(parsed.data.password, env.PASSWORD_PEPPER),
+    hashSecurityAnswer(parsed.data.securityAnswer, env.PASSWORD_PEPPER),
+  ]);
   const { error: insertError } = await supabase.from("employees").insert({
     id: employeeId,
     login_id: loginId,
@@ -132,6 +135,8 @@ export async function POST(request: Request) {
     profile_image_url: profileImagePath,
     role: "employee",
     account_status: "pending",
+    security_question: parsed.data.securityQuestion,
+    security_answer_hash: securityAnswerHash,
   });
 
   if (insertError) {

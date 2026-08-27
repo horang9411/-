@@ -118,6 +118,9 @@ create table if not exists public.employees (
   account_status account_status not null default 'pending',
   failed_login_count smallint not null default 0,
   locked_until timestamptz,
+  security_question varchar(64),
+  security_answer_hash text,
+  password_changed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   last_login_at timestamptz,
@@ -126,7 +129,20 @@ create table if not exists public.employees (
   constraint employees_password_hash_format check (password_hash ~ '^\$2[aby]\$'),
   constraint employees_name_length check (char_length(trim(name)) between 2 and 50),
   constraint employees_phone_format check (phone ~ '^010-[0-9]{4}-[0-9]{4}$'),
-  constraint employees_failed_login_count_check check (failed_login_count between 0 and 20)
+  constraint employees_failed_login_count_check check (failed_login_count between 0 and 20),
+  constraint employees_security_question_value_check check (
+    security_question is null or security_question in (
+      'high_school', 'first_pet', 'childhood_neighborhood',
+      'favorite_teacher', 'first_company'
+    )
+  ),
+  constraint employees_security_answer_hash_format check (
+    security_answer_hash is null or security_answer_hash ~ '^\$2[aby]\$'
+  ),
+  constraint employees_security_recovery_pair_check check (
+    (security_question is null and security_answer_hash is null)
+    or (security_question is not null and security_answer_hash is not null)
+  )
 );
 
 create table if not exists public.sessions (

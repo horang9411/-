@@ -5,6 +5,7 @@ import { revalidateTag } from "next/cache";
 
 import { hasValidMutationOrigin, invalidOriginResponse, requireApiEmployee } from "@/lib/auth/api";
 import { SESSION_CACHE_TAG } from "@/lib/auth/session";
+import { hashSecurityAnswer } from "@/lib/auth/recovery";
 import { EMPLOYEES_CACHE_TAG } from "@/lib/employees/data";
 import {
   getProfileImageExtension,
@@ -12,6 +13,7 @@ import {
   validateProfileImage,
 } from "@/lib/employees/profile-image-file";
 import { getProfileImagePath } from "@/lib/storage/profile-image";
+import { getServerEnv } from "@/lib/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { profileFormSchema } from "@/schemas/profile";
 
@@ -32,6 +34,8 @@ export async function PATCH(request: Request) {
   const parsed = profileFormSchema.safeParse({
     name: formData.get("name"),
     phone: formData.get("phone"),
+    securityQuestion: formData.get("securityQuestion"),
+    securityAnswer: formData.get("securityAnswer"),
   });
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? "프로필 정보를 확인해 주세요." }, { status: 400 });
@@ -52,10 +56,20 @@ export async function PATCH(request: Request) {
   const supabase = createAdminClient();
   const { data: before } = await supabase
     .from("employees")
-    .select("id, name, phone, profile_image_url")
+    .select("id, name, phone, profile_image_url, security_question, security_answer_hash")
     .eq("id", auth.employee.id)
     .maybeSingle();
   if (!before) return NextResponse.json({ message: "직원 정보를 찾을 수 없습니다." }, { status: 404 });
+
+  const securityQuestionChanged =
+    before.security_question !== parsed.data.securityQuestion;
+  const hasNewSecurityAnswer = parsed.data.securityAnswer.length > 0;
+  if ((!before.security_answer_hash || securityQuestionChanged) && !hasNewSecurityAnswer) {
+    return NextResponse.json(
+      { message: "보안 질문을 등록하거나 변경하려면 새 답변을 입력해 주세요." },
+      { status: 400 },
+    );
+  }
 
   let newImagePath: string | null = null;
   if (image) {
@@ -67,7 +81,19 @@ export async function PATCH(request: Request) {
   }
 
   const nextImagePath = image ? newImagePath : removeImage ? null : before.profile_image_url;
-  const updates = { name: parsed.data.name, phone: parsed.data.phone, profile_image_url: nextImagePath };
+  const securityAnswerHash = hasNewSecurityAnswer
+    ? await hashSecurityAnswer(
+        parsed.data.securityAnswer,
+        getServerEnv().PASSWORD_PEPPER,
+      )
+    : before.security_answer_hash;
+  const updates = {
+    name: parsed.data.name,
+    phone: parsed.data.phone,
+    profile_image_url: nextImagePath,
+    security_question: parsed.data.securityQuestion,
+    security_answer_hash: securityAnswerHash,
+  };
   const { error: updateError } = await supabase.from("employees").update(updates).eq("id", auth.employee.id);
   if (updateError) {
     if (newImagePath) await supabase.storage.from(PROFILE_BUCKET).remove([newImagePath]);
@@ -83,6 +109,7 @@ export async function PATCH(request: Request) {
   if (before.name !== updates.name) changedData.name = { before: before.name, after: updates.name };
   if (before.phone !== updates.phone) changedData.phone = { before: before.phone, after: updates.phone };
   if (before.profile_image_url !== updates.profile_image_url) changedData.profile_image = { before: Boolean(before.profile_image_url), after: Boolean(updates.profile_image_url) };
+  if (securityQuestionChanged || hasNewSecurityAnswer) changedData.security_recovery = { question_changed: securityQuestionChanged, answer_changed: hasNewSecurityAnswer };
   if (Object.keys(changedData).length) {
     await supabase.from("activity_logs").insert({
       employee_id: auth.employee.id,

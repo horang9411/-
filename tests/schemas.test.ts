@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { announcementSchema } from "@/schemas/announcements";
+import {
+  findLoginIdSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "@/schemas/auth";
 import { leaveFormSchema } from "@/schemas/leave";
 import { meetingSchema } from "@/schemas/meetings";
 import { taskFormSchema } from "@/schemas/tasks";
@@ -74,6 +79,51 @@ test("회의 일정과 참여자를 검증한다", () => {
   );
   assert.equal(
     meetingSchema.safeParse({ ...validMeeting, participantIds: [] }).success,
+    false,
+  );
+});
+
+test("직원 가입 시 보안 질문과 답변을 검증한다", () => {
+  const validRegistration = {
+    loginId: "pastel.staff",
+    password: "password1234",
+    passwordConfirm: "password1234",
+    name: "김직원",
+    position: "staff",
+    department: "web",
+    phone: "010-1234-5678",
+    securityQuestion: "high_school",
+    securityAnswer: "파스텔고등학교",
+  };
+  assert.equal(registerSchema.safeParse(validRegistration).success, true);
+  assert.equal(
+    registerSchema.safeParse({ ...validRegistration, securityAnswer: "" }).success,
+    false,
+  );
+});
+
+test("아이디 찾기는 이름과 휴대전화 형식을 검증한다", () => {
+  assert.equal(
+    findLoginIdSchema.safeParse({ name: "김직원", phone: "010-1234-5678" })
+      .success,
+    true,
+  );
+  assert.equal(
+    findLoginIdSchema.safeParse({ name: "김직원", phone: "1234" }).success,
+    false,
+  );
+});
+
+test("비밀번호 재설정은 보안 답변과 새 비밀번호 일치를 검증한다", () => {
+  const input = {
+    securityAnswer: "파스텔고등학교",
+    password: "newpassword123",
+    passwordConfirm: "newpassword123",
+  };
+  assert.equal(resetPasswordSchema.safeParse(input).success, true);
+  assert.equal(
+    resetPasswordSchema.safeParse({ ...input, passwordConfirm: "different123" })
+      .success,
     false,
   );
 });

@@ -13,6 +13,7 @@ import {
   Loader2,
   LockKeyhole,
   Phone,
+  ShieldQuestion,
   UserRound,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,7 @@ import { useForm, useWatch } from "react-hook-form";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { securityQuestionOptions } from "@/lib/auth/security-questions";
 import { cn, formatPhone } from "@/lib/utils";
 import { registerSchema, type RegisterInput } from "@/schemas/auth";
 
@@ -50,6 +52,8 @@ export function RegisterForm() {
       position: "staff",
       department: "web",
       phone: "",
+      securityQuestion: "high_school",
+      securityAnswer: "",
     },
   });
   const name = useWatch({ control, name: "name" });
@@ -195,6 +199,30 @@ export function RegisterForm() {
             <option value="logistics">물류</option>
           </select>
         </SelectField>
+      </div>
+
+      <div className="rounded-[14px] border border-[#dfe7e1] bg-[#f8faf8] p-4 sm:p-5">
+        <div className="mb-4 flex items-start gap-2.5">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#e5f4ea] text-[#3b7252]">
+            <ShieldQuestion className="size-[18px]" />
+          </span>
+          <div>
+            <p className="text-[13px] font-extrabold text-[#3f4b43]">비밀번호 찾기 보안 질문</p>
+            <p className="mt-0.5 text-[11px] leading-5 text-[#7f8983]">답변은 비밀번호처럼 암호화하여 저장되며 관리자도 확인할 수 없습니다.</p>
+          </div>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <SelectField label="보안 질문" error={errors.securityQuestion?.message} icon={<ShieldQuestion className="size-[18px]" />}>
+            <select {...register("securityQuestion")} className="auth-input appearance-none pr-10">
+              {securityQuestionOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </SelectField>
+          <InputField label="질문 답변" error={errors.securityAnswer?.message} icon={<LockKeyhole className="size-[18px]" />}>
+            <input {...register("securityAnswer")} type="text" autoComplete="off" placeholder="기억하기 쉬운 답변 입력" className="auth-input" />
+          </InputField>
+        </div>
       </div>
 
       <div className="rounded-[12px] border border-[#eee2ad] bg-[#fff9dd] px-4 py-3 text-[12px] leading-5 text-[#756221]">
