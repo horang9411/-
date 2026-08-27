@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle2,
   Clock3,
+  KeyRound,
   Loader2,
   Pencil,
   RotateCcw,
@@ -37,8 +38,10 @@ import { securityQuestionOptions } from "@/lib/auth/security-questions";
 import { cn, formatPhone } from "@/lib/utils";
 import {
   adminCreateEmployeeSchema,
+  adminResetPasswordSchema,
   adminUpdateEmployeeSchema,
   type AdminCreateEmployeeInput,
+  type AdminResetPasswordInput,
   type AdminUpdateEmployeeInput,
 } from "@/schemas/admin-employees";
 
@@ -83,6 +86,7 @@ export function AdminEmployeesManager({
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<ManagedEmployee | null>(null);
+  const [resettingEmployee, setResettingEmployee] = useState<ManagedEmployee | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
@@ -262,6 +266,7 @@ export function AdminEmployeesManager({
               busyKey={busyKey}
               onAction={runStatusAction}
               onEdit={setEditingEmployee}
+              onResetPassword={setResettingEmployee}
             />
           )}
           {tab === "activity" && <ActivityList logs={activityLogs} />}
@@ -280,6 +285,17 @@ export function AdminEmployeesManager({
           isSelf={editingEmployee.id === currentEmployeeId}
           onClose={() => setEditingEmployee(null)}
           onSaved={() => handleSaved("직원 정보를 수정했습니다.")}
+        />
+      )}
+      {resettingEmployee && (
+        <ResetPasswordDialog
+          employee={resettingEmployee}
+          onClose={() => setResettingEmployee(null)}
+          onSaved={() => {
+            setResettingEmployee(null);
+            setNotice({ kind: "success", text: `${resettingEmployee.name}님의 비밀번호를 재설정하고 기존 로그인을 종료했습니다.` });
+            router.refresh();
+          }}
         />
       )}
     </section>
@@ -350,12 +366,14 @@ function EmployeeTable({
   busyKey,
   onAction,
   onEdit,
+  onResetPassword,
 }: {
   employees: ManagedEmployee[];
   currentEmployeeId: string;
   busyKey: string | null;
   onAction: (employee: ManagedEmployee, action: StatusAction) => void;
   onEdit: (employee: ManagedEmployee) => void;
+  onResetPassword: (employee: ManagedEmployee) => void;
 }) {
   if (employees.length === 0) {
     return <EmptyState icon={Search} title="검색 결과가 없습니다" description="다른 검색어로 다시 확인해 주세요." />;
@@ -401,6 +419,7 @@ function EmployeeTable({
                 <td className="px-6 py-4">
                   <div className="flex justify-end gap-1.5">
                     <Button variant="ghost" size="sm" onClick={() => onEdit(employee)}><Pencil className="size-3.5" /> 수정</Button>
+                    {!isSelf && <Button variant="ghost" size="sm" onClick={() => onResetPassword(employee)}><KeyRound className="size-3.5" /> 비밀번호</Button>}
                     {employee.accountStatus === "pending" && <Button size="sm" onClick={() => onAction(employee, "approve")} disabled={busyKey === `${employee.id}:approve`}><Check className="size-3.5" /> 승인</Button>}
                     {employee.accountStatus === "rejected" && <Button variant="secondary" size="sm" onClick={() => onAction(employee, "approve")}><RotateCcw className="size-3.5" /> 다시 승인</Button>}
                     {employee.accountStatus === "active" && !isSelf && <Button variant="secondary" size="sm" onClick={() => onAction(employee, "suspend")} disabled={busyKey === `${employee.id}:suspend`}><Ban className="size-3.5" /> 사용 중지</Button>}
@@ -508,6 +527,47 @@ function EditEmployeeDialog({ employee, isSelf, onClose, onSaved }: { employee: 
   );
 }
 
+function ResetPasswordDialog({ employee, onClose, onSaved }: { employee: ManagedEmployee; onClose: () => void; onSaved: () => void }) {
+  const [serverError, setServerError] = useState<string | null>(null);
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<AdminResetPasswordInput>({
+    resolver: zodResolver(adminResetPasswordSchema),
+    defaultValues: { password: "", passwordConfirm: "" },
+  });
+
+  const onSubmit = handleSubmit(async (input) => {
+    setServerError(null);
+    try {
+      const response = await fetch(`/api/admin/employees/${employee.id}/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(result.message ?? "비밀번호를 재설정하지 못했습니다.");
+      reset();
+      onSaved();
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : "처리 중 오류가 발생했습니다.");
+    }
+  });
+
+  return (
+    <EmployeeDialog title="직원 비밀번호 재설정" description={`${employee.name} (@${employee.loginId}) 계정에 새 비밀번호를 설정합니다.`} onClose={onClose}>
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {serverError && <FormError message={serverError} />}
+        <div className="rounded-[11px] border border-[#eedda8] bg-[#fff9e5] px-4 py-3 text-[11px] leading-5 text-[#75601f]">
+          저장 즉시 기존 로그인 세션이 모두 종료되며, 직원은 새 비밀번호로 다시 로그인해야 합니다.
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="새 비밀번호" error={errors.password?.message}><input {...register("password")} type="password" autoComplete="new-password" className={inputClass} placeholder="영문·숫자 포함 10자 이상" /></FormField>
+          <FormField label="새 비밀번호 확인" error={errors.passwordConfirm?.message}><input {...register("passwordConfirm")} type="password" autoComplete="new-password" className={inputClass} placeholder="새 비밀번호 다시 입력" /></FormField>
+        </div>
+        <DialogActions onClose={onClose} submitting={isSubmitting} submitLabel="비밀번호 재설정" />
+      </form>
+    </EmployeeDialog>
+  );
+}
+
 function EmployeeDialog({ title, description, onClose, children }: { title: string; description: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#18271e]/40 p-4 backdrop-blur-[2px]" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
@@ -561,7 +621,7 @@ function statusSuccessMessage(name: string, action: StatusAction) {
 }
 
 function activityActionLabel(action: string) {
-  return ({ "admin.employee.create": "직접 등록", "admin.employee.update": "수정", "admin.employee.approve": "승인", "admin.employee.reject": "반려", "admin.employee.suspend": "사용 중지", "admin.employee.activate": "재활성화" } as Record<string, string>)[action] ?? "변경";
+  return ({ "admin.employee.create": "직접 등록", "admin.employee.update": "수정", "admin.employee.password.reset": "비밀번호 재설정", "admin.employee.approve": "승인", "admin.employee.reject": "반려", "admin.employee.suspend": "사용 중지", "admin.employee.activate": "재활성화" } as Record<string, string>)[action] ?? "변경";
 }
 
 function activityDetail(data: Record<string, unknown>) {

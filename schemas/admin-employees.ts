@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 import { securityQuestionValues } from "@/lib/auth/security-questions";
-import { departmentValues, securityAnswerSchema } from "@/schemas/auth";
+import {
+  departmentValues,
+  newPasswordSchema,
+  securityAnswerSchema,
+} from "@/schemas/auth";
 
 const adminPositionValues = [
   "staff",
@@ -68,5 +72,16 @@ export const employeeStatusActionSchema = z
     message: "반려 사유를 입력해 주세요.",
   });
 
+export const adminResetPasswordSchema = z
+  .object({
+    password: newPasswordSchema,
+    passwordConfirm: z.string().min(1, "비밀번호를 다시 입력해 주세요."),
+  })
+  .refine((data) => data.password === data.passwordConfirm, {
+    path: ["passwordConfirm"],
+    message: "비밀번호가 일치하지 않습니다.",
+  });
+
 export type AdminCreateEmployeeInput = z.infer<typeof adminCreateEmployeeSchema>;
 export type AdminUpdateEmployeeInput = z.infer<typeof adminUpdateEmployeeSchema>;
+export type AdminResetPasswordInput = z.infer<typeof adminResetPasswordSchema>;

@@ -10,6 +10,7 @@ import {
 import { leaveFormSchema } from "@/schemas/leave";
 import { meetingSchema } from "@/schemas/meetings";
 import { taskFormSchema } from "@/schemas/tasks";
+import { adminResetPasswordSchema } from "@/schemas/admin-employees";
 
 test("업무 입력은 상태 필드 없이 검증된다", () => {
   const result = taskFormSchema.safeParse({
@@ -123,6 +124,24 @@ test("비밀번호 재설정은 보안 답변과 새 비밀번호 일치를 검�
   assert.equal(resetPasswordSchema.safeParse(input).success, true);
   assert.equal(
     resetPasswordSchema.safeParse({ ...input, passwordConfirm: "different123" })
+      .success,
+    false,
+  );
+});
+
+test("관리자 비밀번호 재설정은 안전한 비밀번호와 확인값을 검증한다", () => {
+  const input = {
+    password: "newpassword123",
+    passwordConfirm: "newpassword123",
+  };
+  assert.equal(adminResetPasswordSchema.safeParse(input).success, true);
+  assert.equal(
+    adminResetPasswordSchema.safeParse({ ...input, passwordConfirm: "different123" })
+      .success,
+    false,
+  );
+  assert.equal(
+    adminResetPasswordSchema.safeParse({ password: "short", passwordConfirm: "short" })
       .success,
     false,
   );
