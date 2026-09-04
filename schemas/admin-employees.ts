@@ -82,6 +82,11 @@ export const adminResetPasswordSchema = z
     message: "비밀번호가 일치하지 않습니다.",
   });
 
+export const adminDeleteEmployeeSchema = z.object({
+  confirmationName: z.string().trim().min(1, "삭제할 직원 이름을 입력해 주세요."),
+});
+
 export type AdminCreateEmployeeInput = z.infer<typeof adminCreateEmployeeSchema>;
 export type AdminUpdateEmployeeInput = z.infer<typeof adminUpdateEmployeeSchema>;
 export type AdminResetPasswordInput = z.infer<typeof adminResetPasswordSchema>;
+export type AdminDeleteEmployeeInput = z.infer<typeof adminDeleteEmployeeSchema>;

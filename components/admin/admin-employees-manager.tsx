@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
+  Trash2,
   UserCheck,
   UserPlus,
   UsersRound,
@@ -171,6 +172,41 @@ export function AdminEmployeesManager({
     }
   }
 
+  async function deleteEmployee(employee: ManagedEmployee) {
+    const confirmationName = window.prompt(
+      `${employee.name}님의 계정을 삭제 처리합니다.\n기존 업무·휴가 기록은 보존되지만, 로그인 정보와 프로필은 삭제됩니다.\n계속하려면 직원 이름을 정확히 입력해 주세요.`,
+    );
+    if (confirmationName === null) return;
+    if (confirmationName.trim() !== employee.name) {
+      setNotice({ kind: "error", text: "직원 이름이 일치하지 않아 삭제하지 않았습니다." });
+      return;
+    }
+
+    const key = `${employee.id}:delete`;
+    setBusyKey(key);
+    setNotice(null);
+
+    try {
+      const response = await fetch(`/api/admin/employees/${employee.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmationName: confirmationName.trim() }),
+      });
+      const result = (await response.json()) as { message?: string };
+      if (!response.ok) throw new Error(result.message ?? "직원을 삭제하지 못했습니다.");
+
+      setNotice({ kind: "success", text: `${employee.name}님의 계정을 삭제 처리했습니다.` });
+      router.refresh();
+    } catch (error) {
+      setNotice({
+        kind: "error",
+        text: error instanceof Error ? error.message : "처리 중 오류가 발생했습니다.",
+      });
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
   function handleSaved(message: string) {
     setCreateOpen(false);
     setEditingEmployee(null);
@@ -257,6 +293,7 @@ export function AdminEmployeesManager({
               busyKey={busyKey}
               onAction={runStatusAction}
               onEdit={setEditingEmployee}
+              onDelete={deleteEmployee}
             />
           )}
           {tab === "all" && (
@@ -267,6 +304,7 @@ export function AdminEmployeesManager({
               onAction={runStatusAction}
               onEdit={setEditingEmployee}
               onResetPassword={setResettingEmployee}
+              onDelete={deleteEmployee}
             />
           )}
           {tab === "activity" && <ActivityList logs={activityLogs} />}
@@ -307,11 +345,13 @@ function PendingList({
   busyKey,
   onAction,
   onEdit,
+  onDelete,
 }: {
   employees: ManagedEmployee[];
   busyKey: string | null;
   onAction: (employee: ManagedEmployee, action: StatusAction) => void;
   onEdit: (employee: ManagedEmployee) => void;
+  onDelete: (employee: ManagedEmployee) => void;
 }) {
   if (employees.length === 0) {
     return (
@@ -347,6 +387,9 @@ function PendingList({
             <Button variant="ghost" size="sm" onClick={() => onEdit(employee)}>
               <Pencil className="size-3.5" /> 정보 수정
             </Button>
+            <Button variant="ghost" size="sm" className="text-[#b6544f] hover:bg-[#fff1f0] hover:text-[#9d433e]" onClick={() => onDelete(employee)} disabled={busyKey === `${employee.id}:delete`}>
+              {busyKey === `${employee.id}:delete` ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />} 삭제
+            </Button>
             <Button variant="secondary" size="sm" onClick={() => onAction(employee, "reject")} disabled={busyKey === `${employee.id}:reject`}>
               {busyKey === `${employee.id}:reject` ? <Loader2 className="size-3.5 animate-spin" /> : <UserX className="size-3.5" />} 반려
             </Button>
@@ -367,6 +410,7 @@ function EmployeeTable({
   onAction,
   onEdit,
   onResetPassword,
+  onDelete,
 }: {
   employees: ManagedEmployee[];
   currentEmployeeId: string;
@@ -374,6 +418,7 @@ function EmployeeTable({
   onAction: (employee: ManagedEmployee, action: StatusAction) => void;
   onEdit: (employee: ManagedEmployee) => void;
   onResetPassword: (employee: ManagedEmployee) => void;
+  onDelete: (employee: ManagedEmployee) => void;
 }) {
   if (employees.length === 0) {
     return <EmptyState icon={Search} title="검색 결과가 없습니다" description="다른 검색어로 다시 확인해 주세요." />;
@@ -420,6 +465,7 @@ function EmployeeTable({
                   <div className="flex justify-end gap-1.5">
                     <Button variant="ghost" size="sm" onClick={() => onEdit(employee)}><Pencil className="size-3.5" /> 수정</Button>
                     {!isSelf && <Button variant="ghost" size="sm" onClick={() => onResetPassword(employee)}><KeyRound className="size-3.5" /> 비밀번호</Button>}
+                    {!isSelf && <Button variant="ghost" size="sm" className="text-[#b6544f] hover:bg-[#fff1f0] hover:text-[#9d433e]" onClick={() => onDelete(employee)} disabled={busyKey === `${employee.id}:delete`}>{busyKey === `${employee.id}:delete` ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />} 삭제</Button>}
                     {employee.accountStatus === "pending" && <Button size="sm" onClick={() => onAction(employee, "approve")} disabled={busyKey === `${employee.id}:approve`}><Check className="size-3.5" /> 승인</Button>}
                     {employee.accountStatus === "rejected" && <Button variant="secondary" size="sm" onClick={() => onAction(employee, "approve")}><RotateCcw className="size-3.5" /> 다시 승인</Button>}
                     {employee.accountStatus === "active" && !isSelf && <Button variant="secondary" size="sm" onClick={() => onAction(employee, "suspend")} disabled={busyKey === `${employee.id}:suspend`}><Ban className="size-3.5" /> 사용 중지</Button>}
@@ -621,7 +667,7 @@ function statusSuccessMessage(name: string, action: StatusAction) {
 }
 
 function activityActionLabel(action: string) {
-  return ({ "admin.employee.create": "직접 등록", "admin.employee.update": "수정", "admin.employee.password.reset": "비밀번호 재설정", "admin.employee.approve": "승인", "admin.employee.reject": "반려", "admin.employee.suspend": "사용 중지", "admin.employee.activate": "재활성화" } as Record<string, string>)[action] ?? "변경";
+  return ({ "admin.employee.create": "직접 등록", "admin.employee.update": "수정", "admin.employee.password.reset": "비밀번호 재설정", "admin.employee.delete": "삭제", "admin.employee.approve": "승인", "admin.employee.reject": "반려", "admin.employee.suspend": "사용 중지", "admin.employee.activate": "재활성화" } as Record<string, string>)[action] ?? "변경";
 }
 
 function activityDetail(data: Record<string, unknown>) {

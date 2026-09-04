@@ -41,14 +41,9 @@ export function AppHeader({ user }: { user: WorkspaceUser }) {
   return (
     <header className="fixed inset-x-0 top-0 z-30 flex h-[72px] items-center justify-between border-b border-[#e3e8e4] bg-white/95 px-4 backdrop-blur lg:ml-[244px] lg:px-8">
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <h1 className="truncate text-lg font-extrabold tracking-[-0.03em] text-[#27332c]">
-            {current.title}
-          </h1>
-          <span className="hidden rounded-full bg-[#fff5c8] px-2 py-0.5 text-[10px] font-bold text-[#715c1d] sm:inline">
-            MVP
-          </span>
-        </div>
+        <h1 className="truncate text-lg font-extrabold tracking-[-0.03em] text-[#27332c]">
+          {current.title}
+        </h1>
         <p className="mt-0.5 hidden text-xs text-[#89918c] md:block">{current.description}</p>
       </div>
 

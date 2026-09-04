@@ -6,6 +6,8 @@ import {
   CalendarX2,
   Loader2,
   Trash2,
+  UsersRound,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 type NotificationItem = {
   id: string;
-  type: "approval" | "cancelled" | "deleted";
+  type: "approval" | "cancelled" | "deleted" | "meeting";
   title: string;
   description: string;
   createdAt: string;
@@ -27,25 +29,29 @@ type NotificationResponse = {
   items: NotificationItem[];
   pendingCount: number;
   changeCount: number;
+  meetingCount: number;
   checkedAt: string;
 };
 
 export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
-  const canReceive =
+  const canReceiveLeave =
     user.positionCode === "team_lead" ||
     (user.role === "admin" && user.positionCode === "representative");
-  const storageKey = `pastelcraft-leave-notifications-seen:${user.id}`;
+  const storageKey = `pastelcraft-notifications-seen-v2:${user.id}`;
+  const meetingPopupKey = `pastelcraft-meeting-popup-checked:${user.id}`;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [changeCount, setChangeCount] = useState(0);
+  const [meetingCount, setMeetingCount] = useState(0);
+  const [meetingPopup, setMeetingPopup] = useState<NotificationItem | null>(null);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
   const sinceRef = useRef<string | null>(null);
+  const meetingPopupSinceRef = useRef<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = useCallback(async () => {
-    if (!canReceive) return;
     const since = sinceRef.current ?? new Date().toISOString();
     setLoading(true);
     try {
@@ -58,15 +64,24 @@ export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
       setItems(result.items);
       setPendingCount(result.pendingCount);
       setChangeCount(result.changeCount);
+      setMeetingCount(result.meetingCount);
       setCheckedAt(result.checkedAt);
+      const popupSince = meetingPopupSinceRef.current ?? result.checkedAt;
+      const newMeeting = result.items.find(
+        (item) => item.type === "meeting" && item.createdAt > popupSince,
+      );
+      if (newMeeting) setMeetingPopup(newMeeting);
+      meetingPopupSinceRef.current = result.checkedAt;
+      window.localStorage.setItem(meetingPopupKey, result.checkedAt);
     } finally {
       setLoading(false);
     }
-  }, [canReceive]);
+  }, [meetingPopupKey]);
 
   useEffect(() => {
-    if (!canReceive) return;
     sinceRef.current = window.localStorage.getItem(storageKey) ?? new Date().toISOString();
+    meetingPopupSinceRef.current =
+      window.localStorage.getItem(meetingPopupKey) ?? new Date().toISOString();
     const initialLoad = window.setTimeout(() => void loadNotifications(), 0);
 
     const interval = window.setInterval(() => void loadNotifications(), 30_000);
@@ -75,17 +90,26 @@ export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
       if (document.visibilityState === "visible") void loadNotifications();
     };
     const handleLeaveChange = () => void loadNotifications();
+    const handleWorkspaceChange = () => void loadNotifications();
     window.addEventListener("focus", handleFocus);
     window.addEventListener("leave-requests-changed", handleLeaveChange);
+    window.addEventListener("workspace-content-created", handleWorkspaceChange);
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       window.clearTimeout(initialLoad);
       window.clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("leave-requests-changed", handleLeaveChange);
+      window.removeEventListener("workspace-content-created", handleWorkspaceChange);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [canReceive, loadNotifications, storageKey]);
+  }, [loadNotifications, meetingPopupKey, storageKey]);
+
+  useEffect(() => {
+    if (!meetingPopup) return;
+    const timeout = window.setTimeout(() => setMeetingPopup(null), 10_000);
+    return () => window.clearTimeout(timeout);
+  }, [meetingPopup]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,9 +120,7 @@ export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
     return () => document.removeEventListener("mousedown", closeOnOutsideClick);
   }, [open]);
 
-  if (!canReceive) return null;
-
-  const count = pendingCount + changeCount;
+  const count = pendingCount + changeCount + meetingCount;
   function toggle() {
     const nextOpen = !open;
     setOpen(nextOpen);
@@ -108,10 +130,30 @@ export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
     sinceRef.current = nextSeenAt;
     window.localStorage.setItem(storageKey, nextSeenAt);
     setChangeCount(0);
+    setMeetingCount(0);
   }
 
   return (
     <div ref={rootRef} className="relative">
+      {meetingPopup && (
+        <div role="alert" className="fixed right-4 top-[84px] z-[70] w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-[16px] border border-[#bcdcc7] bg-white shadow-[0_18px_55px_rgba(31,48,38,0.2)]">
+          <div className="flex items-start gap-3 p-4">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#e5f5eb] text-[#397051]">
+              <UsersRound className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-extrabold leading-5 text-[#354139]">{meetingPopup.title}</p>
+              <p className="mt-1 text-[11px] text-[#77827b]">{meetingPopup.description}</p>
+              <Link href={meetingPopup.href} onClick={() => setMeetingPopup(null)} className="mt-3 inline-flex rounded-[8px] bg-[#e8f5ec] px-3 py-2 text-[11px] font-extrabold text-[#397051] hover:bg-[#dcefe3]">
+                회의 내용 확인
+              </Link>
+            </div>
+            <button type="button" onClick={() => setMeetingPopup(null)} aria-label="회의 알림 닫기" className="flex size-7 shrink-0 items-center justify-center rounded-[8px] text-[#8a948e] hover:bg-[#f0f3f1]">
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
       <Button
         variant="ghost"
         size="icon"
@@ -132,16 +174,18 @@ export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
         <div className="absolute right-0 top-[48px] z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-[16px] border border-[#dfe5e1] bg-white shadow-[0_18px_55px_rgba(31,48,38,0.18)]">
           <div className="flex items-center justify-between border-b border-[#edf0ee] px-4 py-3.5">
             <div>
-              <p className="text-[14px] font-extrabold text-[#303c35]">휴가 알림</p>
-              <p className="mt-0.5 text-[10px] text-[#8a948e]">승인 대기와 최근 취소·삭제 내역</p>
+              <p className="text-[14px] font-extrabold text-[#303c35]">알림</p>
+              <p className="mt-0.5 text-[10px] text-[#8a948e]">회의 초대와 휴가 처리 내역</p>
             </div>
-            <Link
-              href="/admin/leave"
-              onClick={() => setOpen(false)}
-              className="rounded-[8px] bg-[#edf7f0] px-2.5 py-1.5 text-[11px] font-extrabold text-[#397050] hover:bg-[#e2f1e7]"
-            >
-              휴가 승인
-            </Link>
+            {canReceiveLeave && (
+              <Link
+                href="/admin/leave"
+                onClick={() => setOpen(false)}
+                className="rounded-[8px] bg-[#edf7f0] px-2.5 py-1.5 text-[11px] font-extrabold text-[#397050] hover:bg-[#e2f1e7]"
+              >
+                휴가 승인
+              </Link>
+            )}
           </div>
 
           <div className="max-h-[420px] overflow-y-auto">
@@ -152,7 +196,7 @@ export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
             ) : items.length === 0 ? (
               <div className="px-5 py-10 text-center">
                 <CalendarCheck2 className="mx-auto size-7 text-[#9bb4a5]" />
-                <p className="mt-2 text-[12px] font-bold text-[#77827b]">새 휴가 알림이 없습니다.</p>
+                <p className="mt-2 text-[12px] font-bold text-[#77827b]">새 알림이 없습니다.</p>
               </div>
             ) : (
               items.map((item) => (
@@ -165,12 +209,16 @@ export function LeaveNotificationCenter({ user }: { user: WorkspaceUser }) {
                   <span
                     className={cn(
                       "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full",
-                      item.type === "approval"
+                      item.type === "meeting"
+                        ? "bg-[#e5f5eb] text-[#397051]"
+                        : item.type === "approval"
                         ? "bg-[#fff3c4] text-[#806719]"
                         : "bg-[#f8e8e6] text-[#9a514b]",
                     )}
                   >
-                    {item.type === "approval" ? (
+                    {item.type === "meeting" ? (
+                      <UsersRound className="size-4" />
+                    ) : item.type === "approval" ? (
                       <CalendarCheck2 className="size-4" />
                     ) : item.type === "deleted" ? (
                       <Trash2 className="size-4" />

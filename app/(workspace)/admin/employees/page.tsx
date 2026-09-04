@@ -22,6 +22,7 @@ export default async function AdminEmployeesPage() {
         .select(
           "id, login_id, name, position, department, phone, profile_image_url, role, account_status, created_at, updated_at, last_login_at",
         )
+        .not("login_id", "like", "deleted-%")
         .order("created_at", { ascending: false }),
       supabase
         .from("activity_logs")

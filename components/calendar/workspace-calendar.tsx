@@ -27,6 +27,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  calendarMonthLabel,
+  calendarMonthValue,
+  overlapsCalendarMonth,
+} from "@/lib/calendar/month-range";
 import type {
   CompanyHolidayCalendarItem,
   LeaveCalendarItem,
@@ -166,6 +171,9 @@ export function WorkspaceCalendar({
   const router = useRouter();
   const calendarRef = useRef<FullCalendar | null>(null);
   const [mode, setMode] = useState<CalendarMode>(defaultMode);
+  const [overviewMonth, setOverviewMonth] = useState(() =>
+    calendarMonthValue(new Date()),
+  );
   const [selected, setSelected] = useState<EventClickArg["event"] | null>(null);
   const [isScheduleSaving, setIsScheduleSaving] = useState(false);
   const [scheduleNotice, setScheduleNotice] = useState<{
@@ -341,6 +349,9 @@ export function WorkspaceCalendar({
                 }
                 eventDrop={handleEventDrop}
                 eventResize={handleEventResize}
+                datesSet={(arg) =>
+                  setOverviewMonth(calendarMonthValue(arg.view.calendar.getDate()))
+                }
                 eventContent={renderEventContent}
                 eventClick={(arg) => setSelected(arg.event)}
                 dayCellClassNames={(arg) =>
@@ -371,6 +382,7 @@ export function WorkspaceCalendar({
               mode={mode}
               tasks={tasks}
               leaves={leaves}
+              monthValue={overviewMonth}
             />
           )}
         </div>
@@ -389,15 +401,31 @@ function ScheduleOverview({
   mode,
   tasks,
   leaves,
+  monthValue,
 }: {
   mode: CalendarMode;
   tasks: TaskCalendarItem[];
   leaves: LeaveCalendarItem[];
+  monthValue: string;
 }) {
+  const monthlyTasks = useMemo(
+    () =>
+      tasks.filter((task) =>
+        overlapsCalendarMonth(task.startDate, task.endDate, monthValue),
+      ),
+    [monthValue, tasks],
+  );
+  const monthlyLeaves = useMemo(
+    () =>
+      leaves.filter((leave) =>
+        overlapsCalendarMonth(leave.startDate, leave.endDate, monthValue),
+      ),
+    [leaves, monthValue],
+  );
   const groups = useMemo(() => {
     if (mode === "task") {
       const byEmployee = new Map<string, { id: string; name: string; position: string; department: string; imageUrl: string | null; items: TaskCalendarItem[] }>();
-      tasks.forEach((task) => {
+      monthlyTasks.forEach((task) => {
         const current = byEmployee.get(task.ownerId) ?? {
           id: task.ownerId,
           name: task.ownerName,
@@ -415,7 +443,7 @@ function ScheduleOverview({
     }
 
     const byEmployee = new Map<string, { id: string; name: string; position: string; department: string; imageUrl: string | null; items: LeaveCalendarItem[] }>();
-    leaves.forEach((leave) => {
+    monthlyLeaves.forEach((leave) => {
       const current = byEmployee.get(leave.employeeId) ?? {
         id: leave.employeeId,
         name: leave.employeeName,
@@ -430,7 +458,10 @@ function ScheduleOverview({
     return [...byEmployee.values()]
       .map((group) => ({ ...group, items: group.items.sort((a, b) => a.startDate.localeCompare(b.startDate)) }))
       .sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  }, [leaves, mode, tasks]);
+  }, [mode, monthlyLeaves, monthlyTasks]);
+
+  const monthlyItemCount =
+    mode === "task" ? monthlyTasks.length : monthlyLeaves.length;
 
   return (
     <section className="mt-5 rounded-[18px] border border-[#e2e7e3] bg-[#f9fbf9] p-4 shadow-[0_8px_24px_rgba(40,62,49,0.025)] sm:p-5">
@@ -444,11 +475,11 @@ function ScheduleOverview({
               {mode === "task" ? "직원별 업무 한눈에 보기" : "직원별 휴가 일정 한눈에 보기"}
             </h3>
             <p className="mt-0.5 text-[11px] text-[#89928d]">
-              현재 조회 권한이 있는 전체 일정을 표시합니다.
+              {calendarMonthLabel(monthValue)}에 해당하는 일정만 표시합니다.
             </p>
           </div>
         </div>
-        <p className="text-[11px] font-bold text-[#69756e]">{groups.length}명 · {mode === "task" ? tasks.length : leaves.length}건</p>
+        <p className="text-[11px] font-bold text-[#69756e]">{groups.length}명 · {monthlyItemCount}건</p>
       </div>
 
       {groups.length ? (

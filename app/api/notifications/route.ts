@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireApiEmployee } from "@/lib/auth/api";
 import { getLeaveNotifications } from "@/lib/leave/notifications";
+import { getMeetingNotifications } from "@/lib/meetings/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,18 @@ export async function GET(request: Request) {
   const since = normalizeSince(requestedSince);
 
   try {
-    const notifications = await getLeaveNotifications(auth.employee, since);
+    const [leaveNotifications, meetingNotifications] = await Promise.all([
+      getLeaveNotifications(auth.employee, since),
+      getMeetingNotifications(auth.employee, since),
+    ]);
+    const notifications = {
+      ...leaveNotifications,
+      ...meetingNotifications,
+      items: [...leaveNotifications.items, ...meetingNotifications.items].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    };
     return NextResponse.json(
       { ...notifications, checkedAt: new Date().toISOString() },
       { headers: { "Cache-Control": "private, no-store" } },

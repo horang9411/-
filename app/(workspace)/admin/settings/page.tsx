@@ -17,7 +17,7 @@ export default async function AdminSettingsPage() {
   const [holidayResult, logResult, employeeResult, sessionResult, storageFiles, settingResult] = await Promise.all([
     supabase.from("company_holidays").select("id, title, holiday_date, description, created_by, created_at").order("holiday_date", { ascending: true }),
     supabase.from("activity_logs").select("id, employee_id, action_type, target_type, target_id, changed_data, created_at").order("created_at", { ascending: false }).limit(150),
-    supabase.from("employees").select("id, login_id, name, department, position, account_status, failed_login_count, locked_until").order("name", { ascending: true }),
+    supabase.from("employees").select("id, login_id, name, department, position, account_status, failed_login_count, locked_until").not("login_id", "like", "deleted-%").order("name", { ascending: true }),
     supabase.from("sessions").select("id, employee_id, expires_at, created_at"),
     listManagedStorageFiles(supabase),
     getSystemSettings(supabase),

@@ -11,6 +11,7 @@ import { leaveFormSchema } from "@/schemas/leave";
 import { meetingSchema } from "@/schemas/meetings";
 import { taskFormSchema } from "@/schemas/tasks";
 import { adminResetPasswordSchema } from "@/schemas/admin-employees";
+import { adminDeleteEmployeeSchema } from "@/schemas/admin-employees";
 
 test("업무 입력은 상태 필드 없이 검증된다", () => {
   const result = taskFormSchema.safeParse({
@@ -145,4 +146,12 @@ test("관리자 비밀번호 재설정은 안전한 비밀번호와 확인값을
       .success,
     false,
   );
+});
+
+test("직원 삭제는 확인 이름을 요구한다", () => {
+  assert.equal(
+    adminDeleteEmployeeSchema.safeParse({ confirmationName: "김직원" }).success,
+    true,
+  );
+  assert.equal(adminDeleteEmployeeSchema.safeParse({ confirmationName: "" }).success, false);
 });
